@@ -100,6 +100,104 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_designs: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          generation_id: string
+          id: string
+          is_public: boolean
+          share_token: string
+          user_id: string
+          views_count: number
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          generation_id: string
+          id?: string
+          is_public?: boolean
+          share_token: string
+          user_id: string
+          views_count?: number
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          generation_id?: string
+          id?: string
+          is_public?: boolean
+          share_token?: string
+          user_id?: string
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_designs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "design_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          credits_cost: number
+          id: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          credits_cost?: number
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          credits_cost?: number
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_credits: {
+        Row: {
+          created_at: string
+          credits_remaining: number
+          credits_used: number
+          id: string
+          last_reset_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_remaining?: number
+          credits_used?: number
+          id?: string
+          last_reset_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_remaining?: number
+          credits_used?: number
+          id?: string
+          last_reset_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -121,11 +219,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          stripe_product_id: string
+          subscription_end: string | null
+          subscription_tier: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          stripe_product_id: string
+          subscription_end?: string | null
+          subscription_tier?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          stripe_product_id?: string
+          subscription_end?: string | null
+          subscription_tier?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      deduct_credits: {
+        Args: { _credits_cost?: number; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -133,6 +268,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_monthly_credits: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "free" | "pro" | "business"
