@@ -272,9 +272,47 @@ export type Database = {
       }
     }
     Functions: {
+      admin_update_user_credits: {
+        Args: { _credits_remaining: number; _user_id: string }
+        Returns: boolean
+      }
+      admin_update_user_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      admin_update_user_subscription: {
+        Args: {
+          _is_active: boolean
+          _stripe_product_id: string
+          _subscription_end: string
+          _subscription_tier: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       deduct_credits: {
         Args: { _credits_cost?: number; _user_id: string }
         Returns: boolean
+      }
+      get_all_users_admin: {
+        Args: never
+        Returns: {
+          created_at: string
+          credits_remaining: number
+          credits_used: number
+          design_count: number
+          email: string
+          full_name: string
+          is_active: boolean
+          stripe_product_id: string
+          subscription_end: string
+          subscription_tier: string
+          user_id: string
+          user_role: string
+        }[]
       }
       get_design_generation_stats: {
         Args: never
