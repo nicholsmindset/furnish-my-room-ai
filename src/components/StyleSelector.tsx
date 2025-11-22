@@ -1,11 +1,16 @@
-import { Home, Armchair, Minimize2, TreePine, Wrench } from "lucide-react";
+import { Home, Armchair, Minimize2, TreePine, Wrench, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import CustomStyleControls, { CustomStyleParams } from "./CustomStyleControls";
 
 export type DesignStyle = "modern" | "traditional" | "minimalist" | "scandinavian" | "industrial";
 
 interface StyleSelectorProps {
   onStyleSelect: (style: DesignStyle) => void;
   disabled?: boolean;
+  customParams?: CustomStyleParams;
+  onCustomParamsChange?: (params: CustomStyleParams) => void;
 }
 
 const styles: Array<{
@@ -46,15 +51,41 @@ const styles: Array<{
   },
 ];
 
-export default function StyleSelector({ onStyleSelect, disabled }: StyleSelectorProps) {
+export default function StyleSelector({ onStyleSelect, disabled, customParams, onCustomParamsChange }: StyleSelectorProps) {
+  const [showCustomControls, setShowCustomControls] = useState(false);
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-6 py-12">
-      <div className="text-center mb-8">
+    <div className="w-full max-w-6xl mx-auto px-6 py-12 space-y-8">
+      <div className="text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-3">Choose Your Design Style</h2>
         <p className="text-muted-foreground text-lg">
           Select a style to transform your space
         </p>
       </div>
+
+      {customParams && onCustomParamsChange && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              variant={showCustomControls ? "default" : "outline"}
+              onClick={() => setShowCustomControls(!showCustomControls)}
+              className="gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              {showCustomControls ? "Hide" : "Show"} Custom Options
+            </Button>
+          </div>
+          
+          {showCustomControls && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+              <CustomStyleControls
+                params={customParams}
+                onChange={onCustomParamsChange}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {styles.map((style) => (
