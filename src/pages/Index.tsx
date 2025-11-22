@@ -82,14 +82,16 @@ export default function Index() {
 
       const base64Image = await base64Promise;
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      };
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-design`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers,
           body: JSON.stringify({ 
             imageUrl: base64Image, 
             style,
@@ -100,6 +102,9 @@ export default function Index() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 403) {
+          throw new Error("Insufficient credits. Please upgrade your plan.");
+        }
         throw new Error(errorData.error || "Failed to generate design");
       }
 

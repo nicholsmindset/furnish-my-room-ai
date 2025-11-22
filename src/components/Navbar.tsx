@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sparkles, User, LogOut, Heart, History } from "lucide-react";
+import { Sparkles, User, LogOut, Heart, History, Coins } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function Navbar() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, subscription, credits } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -39,6 +40,20 @@ export default function Navbar() {
           <Link to="/pricing" className="text-sm font-medium hover:text-accent transition-colors">
             Pricing
           </Link>
+          <Link to="/gallery" className="text-sm font-medium hover:text-accent transition-colors">
+            Gallery
+          </Link>
+          <Link to="/batch" className="text-sm font-medium hover:text-accent transition-colors">
+            Batch
+          </Link>
+
+          {user && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 rounded-full border border-accent/20">
+              <Coins className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium">{credits.credits_remaining}</span>
+              <span className="text-xs text-muted-foreground">credits</span>
+            </div>
+          )}
 
           {user ? (
             <DropdownMenu>
@@ -55,7 +70,14 @@ export default function Navbar() {
                 <div className="flex items-center justify-start gap-2 p-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user.email}</p>
-                    <p className="text-xs text-muted-foreground">Free Plan</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {subscription.subscribed ? subscription.tier : "Free"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {credits.credits_remaining} credits
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <DropdownMenuSeparator />
