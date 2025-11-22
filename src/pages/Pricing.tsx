@@ -117,7 +117,7 @@ export default function Pricing() {
       if (error) throw error;
       
       if (data?.url) {
-        window.open(data.url, "_blank");
+        window.location.href = data.url;
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -308,7 +308,7 @@ export default function Pricing() {
           <CardHeader className="text-center">
             <CardTitle className="text-3xl">Ready to Transform Your Listings?</CardTitle>
             <CardDescription className="text-lg mt-2">
-              Join thousands of real estate professionals using RoomReimagine
+              Join thousands of real estate professionals using Noonah Design
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex justify-center">

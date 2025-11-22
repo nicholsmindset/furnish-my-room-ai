@@ -3,14 +3,24 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles, Upload, Home, Clock, ImageIcon, Check } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeroProps {
-  onGetStarted: () => void;
   onViewHistory?: () => void;
 }
 
-export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
+export default function Hero({ onViewHistory }: HeroProps) {
+  const navigate = useNavigate();
+  const { user, subscription } = useAuth();
+
+  const handleGetStarted = () => {
+    if (user && subscription.subscribed) {
+      navigate("/?upload=true");
+    } else {
+      navigate("/pricing");
+    }
+  };
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Gradient Overlay */}
@@ -47,7 +57,7 @@ export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button
             size="lg"
-            onClick={onGetStarted}
+            onClick={handleGetStarted}
             className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105"
           >
             <Upload className="w-5 h-5 mr-2" />
@@ -109,7 +119,7 @@ export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
                 <Button
                   variant="outline"
                   className="w-full mt-6 bg-background/10 border-accent/30"
-                  onClick={onGetStarted}
+                  onClick={handleGetStarted}
                 >
                   Get Started
                 </Button>
