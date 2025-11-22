@@ -39,8 +39,9 @@ export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
           Into Dream Homes
         </h1>
 
-        <p className="text-xl md:text-2xl text-primary-foreground/90 mb-10 max-w-2xl mx-auto">
-          Professional virtual staging in seconds. Upload your empty room photo and let AI create stunning, photorealistic designs.
+        <p className="text-xl md:text-2xl text-primary-foreground/90 mb-10 max-w-3xl mx-auto">
+          Professional virtual staging in seconds. Upload your empty room photo and let AI create stunning, 
+          photorealistic designs that sell — without the $300-per-room cost, the 48-hour wait, or hiring a designer.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -52,16 +53,15 @@ export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
             <Upload className="w-5 h-5 mr-2" />
             Start Staging Now
           </Button>
-          {onViewHistory && (
+          <Link to="/gallery">
             <Button
               size="lg"
               variant="outline"
-              onClick={onViewHistory}
               className="px-8 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105 bg-card/10 backdrop-blur-md border-accent/30"
             >
-              View History
+              View Examples
             </Button>
-          )}
+          </Link>
         </div>
 
         {/* Stats Section */}
