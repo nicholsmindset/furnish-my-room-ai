@@ -5,11 +5,18 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Users, DollarSign, Image, TrendingUp, Crown, Zap, Sparkles } from "lucide-react";
+import { Users, DollarSign, Image, TrendingUp, Crown, Zap, Sparkles, Edit, RefreshCw, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Navbar from "@/components/Navbar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 interface AdminAnalytics {
   total_users: number;
@@ -50,17 +57,40 @@ interface TopUser {
   credits_used: number;
 }
 
+interface User {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  subscription_tier: string;
+  is_active: boolean;
+  subscription_end: string | null;
+  stripe_product_id: string | null;
+  credits_remaining: number;
+  credits_used: number;
+  design_count: number;
+  user_role: string;
+}
+
 const COLORS = ['hsl(var(--accent))', 'hsl(var(--primary))', 'hsl(var(--muted))'];
 
 export default function AdminDashboard() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
   const [designStats, setDesignStats] = useState<DesignStats[]>([]);
   const [subscriptionMetrics, setSubscriptionMetrics] = useState<SubscriptionMetrics[]>([]);
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editSubDialog, setEditSubDialog] = useState(false);
+  const [editRoleDialog, setEditRoleDialog] = useState(false);
+  const [editCreditsDialog, setEditCreditsDialog] = useState(false);
+  const [refundDialog, setRefundDialog] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("overview");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -107,10 +137,88 @@ export default function AdminDashboard() {
       if (topUsersError) throw topUsersError;
       setTopUsers(topUsersData || []);
 
+      // Fetch all users for management
+      const { data: allUsersData, error: allUsersError } = await supabase.rpc('get_all_users_admin');
+      if (allUsersError) throw allUsersError;
+      setAllUsers(allUsersData || []);
+
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateSubscription = async (userId: string, tier: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase.rpc('admin_update_user_subscription', {
+        _user_id: userId,
+        _subscription_tier: tier as 'free' | 'pro' | 'business' | 'admin',
+        _is_active: isActive,
+        _stripe_product_id: null,
+        _subscription_end: isActive ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Subscription updated successfully" });
+      setEditSubDialog(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      toast({ title: "Failed to update subscription", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase.rpc('admin_update_user_role', {
+        _user_id: userId,
+        _new_role: newRole as 'free' | 'pro' | 'business' | 'admin'
+      });
+
+      if (error) throw error;
+
+      toast({ title: "User role updated successfully" });
+      setEditRoleDialog(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast({ title: "Failed to update role", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateCredits = async (userId: string, credits: number) => {
+    try {
+      const { error } = await supabase.rpc('admin_update_user_credits', {
+        _user_id: userId,
+        _credits_remaining: credits
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Credits updated successfully" });
+      setEditCreditsDialog(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Error updating credits:', error);
+      toast({ title: "Failed to update credits", variant: "destructive" });
+    }
+  };
+
+  const handleRefund = async (paymentIntentId: string, amount?: number) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-refund-payment', {
+        body: { payment_intent_id: paymentIntentId, amount, reason: 'requested_by_customer' }
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Refund processed successfully" });
+      setRefundDialog(false);
+    } catch (error) {
+      console.error('Error processing refund:', error);
+      toast({ title: "Failed to process refund", variant: "destructive" });
     }
   };
 
@@ -125,6 +233,28 @@ export default function AdminDashboard() {
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="mb-6">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Home</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Admin Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+              {selectedTab !== "overview" && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="capitalize">{selectedTab}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
@@ -216,13 +346,31 @@ export default function AdminDashboard() {
             </div>
 
             {/* Charts and Tables */}
-            <Tabs defaultValue="growth" className="space-y-6">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
               <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="growth">User Growth</TabsTrigger>
                 <TabsTrigger value="designs">Design Activity</TabsTrigger>
                 <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
                 <TabsTrigger value="users">Top Users</TabsTrigger>
+                <TabsTrigger value="management">User Management</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="overview" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Platform Overview</CardTitle>
+                    <CardDescription>Quick summary of key metrics</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        View detailed analytics in other tabs or manage users directly.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="growth" className="space-y-6">
                 <Card>
@@ -416,9 +564,259 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              <TabsContent value="management">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Management</CardTitle>
+                    <CardDescription>View and manage all users, subscriptions, and roles</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Subscription</TableHead>
+                          <TableHead className="text-right">Credits</TableHead>
+                          <TableHead className="text-right">Designs</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allUsers.map((user) => (
+                          <TableRow key={user.user_id}>
+                            <TableCell className="font-medium">{user.email}</TableCell>
+                            <TableCell>{user.full_name || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {user.user_role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={user.is_active ? 'default' : 'secondary'} className="capitalize">
+                                  {user.subscription_tier}
+                                </Badge>
+                                {user.is_active && (
+                                  <span className="text-xs text-muted-foreground">Active</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{user.credits_remaining}</TableCell>
+                            <TableCell className="text-right">{user.design_count}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setEditSubDialog(true);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setEditRoleDialog(true);
+                                  }}
+                                >
+                                  <Shield className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setEditCreditsDialog(true);
+                                  }}
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
           </>
         )}
+
+        {/* Edit Subscription Dialog */}
+        <Dialog open={editSubDialog} onOpenChange={setEditSubDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Subscription</DialogTitle>
+              <DialogDescription>Update user subscription tier and status</DialogDescription>
+            </DialogHeader>
+            {selectedUser && (
+              <div className="space-y-4">
+                <div>
+                  <Label>User: {selectedUser.email}</Label>
+                </div>
+                <div>
+                  <Label htmlFor="tier">Subscription Tier</Label>
+                  <Select
+                    defaultValue={selectedUser.subscription_tier}
+                    onValueChange={(value) => {
+                      if (selectedUser) {
+                        setSelectedUser({ ...selectedUser, subscription_tier: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="tier">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    defaultValue={selectedUser.is_active ? "active" : "inactive"}
+                    onValueChange={(value) => {
+                      if (selectedUser) {
+                        setSelectedUser({ ...selectedUser, is_active: value === "active" });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditSubDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (selectedUser) {
+                    handleUpdateSubscription(
+                      selectedUser.user_id,
+                      selectedUser.subscription_tier,
+                      selectedUser.is_active
+                    );
+                  }
+                }}
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Role Dialog */}
+        <Dialog open={editRoleDialog} onOpenChange={setEditRoleDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User Role</DialogTitle>
+              <DialogDescription>Change the user's role in the system</DialogDescription>
+            </DialogHeader>
+            {selectedUser && (
+              <div className="space-y-4">
+                <div>
+                  <Label>User: {selectedUser.email}</Label>
+                </div>
+                <div>
+                  <Label htmlFor="role">User Role</Label>
+                  <Select
+                    defaultValue={selectedUser.user_role}
+                    onValueChange={(value) => {
+                      if (selectedUser) {
+                        setSelectedUser({ ...selectedUser, user_role: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditRoleDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (selectedUser) {
+                    handleUpdateRole(selectedUser.user_id, selectedUser.user_role);
+                  }
+                }}
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Credits Dialog */}
+        <Dialog open={editCreditsDialog} onOpenChange={setEditCreditsDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User Credits</DialogTitle>
+              <DialogDescription>Adjust the user's available credits</DialogDescription>
+            </DialogHeader>
+            {selectedUser && (
+              <div className="space-y-4">
+                <div>
+                  <Label>User: {selectedUser.email}</Label>
+                </div>
+                <div>
+                  <Label htmlFor="credits">Credits Remaining</Label>
+                  <Input
+                    id="credits"
+                    type="number"
+                    defaultValue={selectedUser.credits_remaining}
+                    onChange={(e) => {
+                      if (selectedUser) {
+                        setSelectedUser({
+                          ...selectedUser,
+                          credits_remaining: parseInt(e.target.value) || 0
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditCreditsDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (selectedUser) {
+                    handleUpdateCredits(selectedUser.user_id, selectedUser.credits_remaining);
+                  }
+                }}
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
