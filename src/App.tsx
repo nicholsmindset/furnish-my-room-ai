@@ -11,6 +11,7 @@ import Favorites from "./pages/Favorites";
 import BatchProcessing from "./pages/BatchProcessing";
 import SharedGallery from "./pages/SharedGallery";
 import AdminDashboard from "./pages/AdminDashboard";
+import UserDashboard from "./pages/UserDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/batch" element={<BatchProcessing />} />
             <Route path="/gallery" element={<SharedGallery />} />

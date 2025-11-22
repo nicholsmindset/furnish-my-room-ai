@@ -83,6 +83,10 @@ export default function Navbar() {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                  <User className="w-4 h-4 mr-2" />
+                  My Dashboard
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/favorites")}>
                   <Heart className="w-4 h-4 mr-2" />
                   Favorites
@@ -93,7 +97,7 @@ export default function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/pricing")}>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Upgrade Plan
+                  View Plans
                 </DropdownMenuItem>
                 {isAdmin && (
                   <>
