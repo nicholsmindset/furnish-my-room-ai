@@ -13,8 +13,8 @@ const logStep = (step: string, details?: any) => {
 };
 
 const STRIPE_PRODUCTS = {
-  "prod_TTC5OVhnU7I1ur": "pro",
-  "prod_TTC8dlRQ7W0hD9": "business",
+  "prod_RZkgNtbGJ0eY8j": "pro",
+  "prod_RZkhKK9YPWl8YJ": "business",
 };
 
 serve(async (req) => {
@@ -100,6 +100,21 @@ serve(async (req) => {
       await supabaseClient
         .from("user_roles")
         .update({ role: tier })
+        .eq("user_id", user.id);
+
+      // Update credits based on tier
+      const creditsPerTier: Record<string, number> = {
+        free: 3,
+        pro: 50,
+        business: 999999,
+      };
+
+      await supabaseClient
+        .from("user_credits")
+        .update({
+          credits_remaining: creditsPerTier[tier as keyof typeof creditsPerTier] || 3,
+          updated_at: new Date().toISOString(),
+        })
         .eq("user_id", user.id);
     } else {
       logStep("No active subscription found");

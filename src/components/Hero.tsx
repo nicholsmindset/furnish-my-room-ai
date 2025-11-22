@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Upload, Home, Clock, ImageIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Sparkles, Upload, Home, Clock, ImageIcon, Check } from "lucide-react";
 import heroBackground from "@/assets/hero-background.jpg";
+import { Link } from "react-router-dom";
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -78,6 +80,103 @@ export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
             <ImageIcon className="w-8 h-8 text-accent mx-auto mb-3" />
             <div className="text-3xl font-bold text-primary-foreground mb-1">4K HD</div>
             <div className="text-primary-foreground/80">Quality</div>
+          </div>
+        </div>
+
+        {/* Features Showcase */}
+        <div className="mt-20">
+          <h2 className="text-3xl font-bold text-primary-foreground mb-8">
+            What's Included in Every Plan
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-card/20 backdrop-blur-lg border-accent/20">
+              <CardContent className="pt-6">
+                <h3 className="text-xl font-bold mb-4 text-primary-foreground">Free</h3>
+                <ul className="space-y-3 text-left">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">3 designs/month</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">5 design styles</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">HD quality</span>
+                  </li>
+                </ul>
+                <Button
+                  variant="outline"
+                  className="w-full mt-6 bg-background/10 border-accent/30"
+                  onClick={onGetStarted}
+                >
+                  Get Started
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-accent/30 backdrop-blur-lg border-accent scale-105 shadow-large">
+              <CardContent className="pt-6">
+                <Badge className="mb-2">Most Popular</Badge>
+                <h3 className="text-xl font-bold mb-4 text-primary-foreground">Pro - $29/mo</h3>
+                <ul className="space-y-3 text-left">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">50 designs/month</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">4K Ultra HD</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">Priority generation</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">Shareable links</span>
+                  </li>
+                </ul>
+                <Link to="/pricing">
+                  <Button className="w-full mt-6 bg-accent hover:bg-accent/90">
+                    Upgrade to Pro
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/20 backdrop-blur-lg border-accent/20">
+              <CardContent className="pt-6">
+                <h3 className="text-xl font-bold mb-4 text-primary-foreground">Business - $99/mo</h3>
+                <ul className="space-y-3 text-left">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">Unlimited designs</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">8K resolution</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">Batch processing</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <span className="text-primary-foreground/90">API access</span>
+                  </li>
+                </ul>
+                <Link to="/pricing">
+                  <Button
+                    variant="outline"
+                    className="w-full mt-6 bg-background/10 border-accent/30"
+                  >
+                    Upgrade to Business
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

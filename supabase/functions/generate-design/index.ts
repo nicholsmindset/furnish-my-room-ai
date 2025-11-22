@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { fal } from "https://esm.sh/@fal-ai/client@1.1.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,70 @@ serve(async (req) => {
         JSON.stringify({ error: "Missing imageUrl, style, or roomType" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Get user from authorization header (optional for free tier)
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      if (!userError && userData.user) {
+        userId = userData.user.id;
+      }
+    }
+
+    // If user is authenticated, check and deduct credits
+    if (userId) {
+      // Check current credits
+      const { data: creditsData, error: creditsError } = await supabaseClient
+        .from("user_credits")
+        .select("credits_remaining")
+        .eq("user_id", userId)
+        .single();
+
+      if (creditsError || !creditsData) {
+        return new Response(
+          JSON.stringify({ error: "Failed to check credits" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (creditsData.credits_remaining < 1) {
+        return new Response(
+          JSON.stringify({ error: "Insufficient credits. Please upgrade your plan." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Deduct credit using database function
+      const { data: deductSuccess, error: deductError } = await supabaseClient.rpc(
+        "deduct_credits",
+        { _user_id: userId, _credits_cost: 1 }
+      );
+
+      if (deductError || !deductSuccess) {
+        return new Response(
+          JSON.stringify({ error: "Failed to deduct credits" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Log usage
+      await supabaseClient.from("usage_logs").insert({
+        user_id: userId,
+        action_type: "design_generation",
+        credits_cost: 1,
+        metadata: { style, room_type: roomType },
+      });
     }
 
     const FAL_KEY = Deno.env.get("FAL_KEY");

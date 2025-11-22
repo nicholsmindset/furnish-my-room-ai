@@ -1,9 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles, Zap, Crown } from "lucide-react";
+import { Check, Sparkles, Zap, Crown, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+
+const PRODUCT_IDS = {
+  pro: "prod_RZkgNtbGJ0eY8j",
+  business: "prod_RZkhKK9YPWl8YJ",
+};
 
 const plans = [
   {
@@ -12,6 +20,7 @@ const plans = [
     period: "forever",
     description: "Perfect for trying out virtual staging",
     icon: Sparkles,
+    productId: null,
     features: [
       "3 designs per month",
       "5 design styles",
@@ -28,6 +37,7 @@ const plans = [
     period: "per month",
     description: "For real estate professionals",
     icon: Zap,
+    productId: PRODUCT_IDS.pro,
     features: [
       "50 designs per month",
       "All 5 design styles",
@@ -38,6 +48,7 @@ const plans = [
       "Priority generation",
       "Favorites & bookmarks",
       "Design history",
+      "Shareable design links",
     ],
     cta: "Upgrade to Pro",
     popular: true,
@@ -48,6 +59,7 @@ const plans = [
     period: "per month",
     description: "For agencies and teams",
     icon: Crown,
+    productId: PRODUCT_IDS.business,
     features: [
       "Unlimited designs",
       "All Pro features",
@@ -56,7 +68,7 @@ const plans = [
       "API access",
       "Team collaboration",
       "Priority support",
-      "Bulk processing",
+      "Batch processing",
       "White-label exports",
     ],
     cta: "Upgrade to Business",
@@ -66,15 +78,90 @@ const plans = [
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session, subscription } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSelectPlan = (planName: string) => {
-    if (!user && planName !== "Free") {
-      navigate("/auth");
-    } else {
-      // TODO: Implement Stripe checkout
-      navigate("/");
+  const handleSelectPlan = async (planName: string, productId: string | null) => {
+    if (planName === "Free") {
+      if (!user) {
+        navigate("/auth");
+      } else {
+        navigate("/");
+      }
+      return;
     }
+
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (subscription.subscribed && subscription.product_id === productId) {
+      toast({
+        title: "Already subscribed",
+        description: "You're already on this plan!",
+      });
+      return;
+    }
+
+    setLoading(planName);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: { productId },
+      });
+
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!user || !session) return;
+
+    setLoading("portal");
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Portal error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to open customer portal.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const isCurrentPlan = (productId: string | null) => {
+    if (!productId) return !subscription.subscribed;
+    return subscription.product_id === productId;
   };
 
   return (
@@ -93,17 +180,35 @@ export default function Pricing() {
         </p>
       </div>
 
+      {/* Manage Subscription Button */}
+      {subscription.subscribed && (
+        <div className="max-w-7xl mx-auto px-6 pb-8 text-center">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleManageSubscription}
+            disabled={loading === "portal"}
+          >
+            <Settings className="w-5 h-5 mr-2" />
+            Manage Subscription
+          </Button>
+        </div>
+      )}
+
       {/* Pricing Cards */}
       <div className="max-w-7xl mx-auto px-6 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {plans.map((plan, index) => {
             const Icon = plan.icon;
+            const isCurrent = isCurrentPlan(plan.productId);
             return (
               <Card
                 key={plan.name}
                 className={`relative flex flex-col ${
                   plan.popular
                     ? "border-2 border-accent shadow-large scale-105"
+                    : isCurrent
+                    ? "border-2 border-primary"
                     : "border-border"
                 }`}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -112,6 +217,13 @@ export default function Pricing() {
                   <div className="absolute -top-4 left-0 right-0 flex justify-center">
                     <Badge className="bg-accent text-accent-foreground px-4 py-1">
                       Most Popular
+                    </Badge>
+                  </div>
+                )}
+                {isCurrent && (
+                  <div className="absolute -top-4 left-0 right-0 flex justify-center">
+                    <Badge className="bg-primary text-primary-foreground px-4 py-1">
+                      Your Plan
                     </Badge>
                   </div>
                 )}
@@ -141,9 +253,10 @@ export default function Pricing() {
                     className="w-full"
                     variant={plan.popular ? "default" : "outline"}
                     size="lg"
-                    onClick={() => handleSelectPlan(plan.name)}
+                    onClick={() => handleSelectPlan(plan.name, plan.productId)}
+                    disabled={loading === plan.name || isCurrent}
                   >
-                    {plan.cta}
+                    {loading === plan.name ? "Loading..." : isCurrent ? "Current Plan" : plan.cta}
                   </Button>
                 </CardFooter>
               </Card>

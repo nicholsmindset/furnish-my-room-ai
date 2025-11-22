@@ -8,13 +8,13 @@ const corsHeaders = {
 };
 
 const STRIPE_PRODUCTS = {
-  pro: {
+  "prod_RZkgNtbGJ0eY8j": {
     price_id: "price_1SWFgsDjNCv7xF612MNXPijT",
-    product_id: "prod_TTC5OVhnU7I1ur",
+    tier: "pro",
   },
-  business: {
+  "prod_RZkhKK9YPWl8YJ": {
     price_id: "price_1SWFjqDjNCv7xF61WBYqiVY1",
-    product_id: "prod_TTC8dlRQ7W0hD9",
+    tier: "business",
   },
 };
 
@@ -29,10 +29,10 @@ serve(async (req) => {
   );
 
   try {
-    const { tier } = await req.json();
+    const { productId } = await req.json();
     
-    if (!tier || !STRIPE_PRODUCTS[tier as keyof typeof STRIPE_PRODUCTS]) {
-      throw new Error("Invalid subscription tier");
+    if (!productId || !STRIPE_PRODUCTS[productId as keyof typeof STRIPE_PRODUCTS]) {
+      throw new Error("Invalid product ID");
     }
 
     const authHeader = req.headers.get("Authorization")!;
@@ -51,7 +51,7 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const productInfo = STRIPE_PRODUCTS[tier as keyof typeof STRIPE_PRODUCTS];
+    const productInfo = STRIPE_PRODUCTS[productId as keyof typeof STRIPE_PRODUCTS];
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

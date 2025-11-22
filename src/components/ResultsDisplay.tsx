@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Heart, Grid3X3 } from "lucide-react";
+import { ArrowLeft, Download, Heart, Grid3X3, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,8 +21,9 @@ export default function ResultsDisplay({
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   const handleMouseDown = () => setIsDragging(true);
   const handleMouseUp = () => setIsDragging(false);
@@ -213,6 +214,43 @@ export default function ResultsDisplay({
     }
   };
 
+  const handleShare = async () => {
+    if (!user || !generationId || !session) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to share designs",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-share-link", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: { generationId },
+      });
+
+      if (error) throw error;
+
+      if (data?.shareUrl) {
+        setShareLink(data.shareUrl);
+        navigator.clipboard.writeText(data.shareUrl);
+        toast({
+          title: "Link copied!",
+          description: "Share link copied to clipboard",
+        });
+      }
+    } catch (error) {
+      console.error("Share error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create share link",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto px-6 py-12">
       <div className="text-center mb-8">
@@ -303,15 +341,26 @@ export default function ResultsDisplay({
         </Button>
         
         {user && generationId && (
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={toggleFavorite}
-            className={`px-6 ${isFavorited ? "text-red-500 border-red-500" : ""}`}
-          >
-            <Heart className={`w-5 h-5 mr-2 ${isFavorited ? "fill-current" : ""}`} />
-            {isFavorited ? "Favorited" : "Favorite"}
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={toggleFavorite}
+              className={`px-6 ${isFavorited ? "text-red-500 border-red-500" : ""}`}
+            >
+              <Heart className={`w-5 h-5 mr-2 ${isFavorited ? "fill-current" : ""}`} />
+              {isFavorited ? "Favorited" : "Favorite"}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleShare}
+              className="px-6"
+            >
+              <Share2 className="w-5 h-5 mr-2" />
+              Share
+            </Button>
+          </>
         )}
 
         <Button
