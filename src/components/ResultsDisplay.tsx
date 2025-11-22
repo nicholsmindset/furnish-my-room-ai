@@ -1,20 +1,28 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Heart, Grid3X3 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ResultsDisplayProps {
   originalImage: string;
   generatedImage: string;
+  generationId: string | null;
   onBack: () => void;
 }
 
 export default function ResultsDisplay({
   originalImage,
   generatedImage,
+  generationId,
   onBack,
 }: ResultsDisplayProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleMouseDown = () => setIsDragging(true);
   const handleMouseUp = () => setIsDragging(false);
@@ -67,6 +75,141 @@ export default function ResultsDisplay({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Download error:", error);
+      toast({
+        title: "Download failed",
+        description: "Failed to download the image",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadCollage = async () => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Load both images
+      const [origImg, genImg] = await Promise.all([
+        loadImage(originalImage),
+        loadImage(generatedImage)
+      ]);
+
+      // Set canvas size (side by side)
+      const width = origImg.width + genImg.width;
+      const height = Math.max(origImg.height, genImg.height);
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw white background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw both images
+      ctx.drawImage(origImg, 0, 0);
+      ctx.drawImage(genImg, origImg.width, 0);
+
+      // Add labels
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(20, 20, 100, 40);
+      ctx.fillRect(origImg.width + 20, 20, 100, 40);
+      
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText('Before', 40, 48);
+      ctx.fillText('After', origImg.width + 40, 48);
+
+      // Download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'roomreimagine-collage.png';
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+
+      toast({
+        title: "Collage downloaded!",
+        description: "Your before/after comparison is ready.",
+      });
+    } catch (error) {
+      console.error("Collage error:", error);
+      toast({
+        title: "Export failed",
+        description: "Failed to create collage",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  const toggleFavorite = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save favorites",
+      });
+      return;
+    }
+
+    if (!generationId) {
+      toast({
+        title: "Error",
+        description: "Cannot favorite this generation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (isFavorited) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from("favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("generation_id", generationId);
+
+        if (error) throw error;
+        setIsFavorited(false);
+        toast({
+          title: "Removed from favorites",
+          description: "Design removed from your favorites",
+        });
+      } else {
+        // Add to favorites
+        const { error } = await supabase
+          .from("favorites")
+          .insert({
+            user_id: user.id,
+            generation_id: generationId,
+          });
+
+        if (error) throw error;
+        setIsFavorited(true);
+        toast({
+          title: "Added to favorites!",
+          description: "Design saved to your favorites",
+        });
+      }
+    } catch (error) {
+      console.error("Favorite error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update favorites",
+        variant: "destructive",
+      });
     }
   };
 
@@ -148,7 +291,7 @@ export default function ResultsDisplay({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <div className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center">
         <Button
           variant="outline"
           size="lg"
@@ -158,6 +301,29 @@ export default function ResultsDisplay({
           <ArrowLeft className="w-5 h-5 mr-2" />
           Start Over
         </Button>
+        
+        {user && generationId && (
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={toggleFavorite}
+            className={`px-6 ${isFavorited ? "text-red-500 border-red-500" : ""}`}
+          >
+            <Heart className={`w-5 h-5 mr-2 ${isFavorited ? "fill-current" : ""}`} />
+            {isFavorited ? "Favorited" : "Favorite"}
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={handleDownloadCollage}
+          className="px-6"
+        >
+          <Grid3X3 className="w-5 h-5 mr-2" />
+          Export Collage
+        </Button>
+        
         <div className="flex gap-2">
           <Button
             size="lg"

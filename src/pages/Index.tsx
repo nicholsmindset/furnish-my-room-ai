@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import UploadSection from "@/components/UploadSection";
 import RoomTypeSelector, { RoomType } from "@/components/RoomTypeSelector";
@@ -8,6 +10,7 @@ import StyleSelector, { DesignStyle } from "@/components/StyleSelector";
 import LoadingState from "@/components/LoadingState";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import ImageHistory from "@/components/ImageHistory";
+import { CustomStyleParams } from "@/components/CustomStyleControls";
 
 type AppState = "hero" | "upload" | "room-type-select" | "style-select" | "generating" | "results" | "history";
 
@@ -16,9 +19,16 @@ export default function Index() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [originalImageUrl, setOriginalImageUrl] = useState<string>("");
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string>("");
+  const [generationId, setGenerationId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(null);
+  const [customParams, setCustomParams] = useState<CustomStyleParams>({
+    colorScheme: "neutral",
+    furnitureStyle: "contemporary",
+    lighting: 70,
+  });
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleGetStarted = () => {
     setAppState("upload");
@@ -102,12 +112,21 @@ export default function Index() {
 
       // Save to history
       try {
-        await supabase.from("design_generations").insert({
-          original_image_url: base64Image,
-          generated_image_url: data.imageUrl,
-          style: style,
-          room_type: selectedRoomType,
-        });
+        const { data: genData, error: genError } = await supabase
+          .from("design_generations")
+          .insert({
+            original_image_url: base64Image,
+            generated_image_url: data.imageUrl,
+            style: style,
+            room_type: selectedRoomType,
+            user_id: user?.id || null,
+          })
+          .select()
+          .single();
+
+        if (!genError && genData) {
+          setGenerationId(genData.id);
+        }
       } catch (historyError) {
         console.error("Error saving to history:", historyError);
         // Don't fail the whole operation if history save fails
@@ -137,6 +156,7 @@ export default function Index() {
     setSelectedImage(null);
     setOriginalImageUrl("");
     setGeneratedImageUrl("");
+    setGenerationId(null);
     setProgress(0);
     setSelectedRoomType(null);
     setAppState("hero");
@@ -155,6 +175,8 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
+      {appState !== "hero" && <Navbar />}
+      
       {appState === "hero" && (
         <Hero onGetStarted={handleGetStarted} onViewHistory={handleViewHistory} />
       )}
@@ -172,7 +194,11 @@ export default function Index() {
       )}
 
       {appState === "style-select" && (
-        <StyleSelector onStyleSelect={handleStyleSelect} />
+        <StyleSelector 
+          onStyleSelect={handleStyleSelect}
+          customParams={customParams}
+          onCustomParamsChange={setCustomParams}
+        />
       )}
 
       {appState === "generating" && <LoadingState progress={progress} />}
@@ -181,6 +207,7 @@ export default function Index() {
         <ResultsDisplay
           originalImage={originalImageUrl}
           generatedImage={generatedImageUrl}
+          generationId={generationId}
           onBack={handleBack}
         />
       )}
