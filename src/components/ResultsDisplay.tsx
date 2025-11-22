@@ -27,13 +27,47 @@ export default function ResultsDisplay({
     setSliderPosition(percentage);
   };
 
-  const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = generatedImage;
-    link.download = `roomreimagine-${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (format: string) => {
+    try {
+      const response = await fetch(generatedImage);
+      const blob = await response.blob();
+      
+      let finalBlob = blob;
+      let extension = format;
+      
+      // Convert to different formats if needed
+      if (format !== 'png') {
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = URL.createObjectURL(blob);
+        });
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        
+        const quality = format === 'jpg' ? 0.95 : 0.9;
+        finalBlob = await new Promise((resolve) => {
+          canvas.toBlob((b) => resolve(b!), `image/${format === 'jpg' ? 'jpeg' : format}`, quality);
+        });
+      }
+      
+      const url = window.URL.createObjectURL(finalBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `roomreimagine-result.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+    }
   };
 
   return (
@@ -124,14 +158,32 @@ export default function ResultsDisplay({
           <ArrowLeft className="w-5 h-5 mr-2" />
           Start Over
         </Button>
-        <Button
-          size="lg"
-          onClick={handleDownload}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground px-8"
-        >
-          <Download className="w-5 h-5 mr-2" />
-          Download Result
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="lg"
+            onClick={() => handleDownload('png')}
+            className="bg-accent hover:bg-accent/90 text-accent-foreground px-6"
+          >
+            <Download className="w-5 h-5 mr-2" />
+            PNG
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => handleDownload('jpg')}
+            className="px-6"
+          >
+            JPG
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => handleDownload('webp')}
+            className="px-6"
+          >
+            WebP
+          </Button>
+        </div>
       </div>
     </div>
   );

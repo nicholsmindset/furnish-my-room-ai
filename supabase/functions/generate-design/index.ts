@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, style } = await req.json();
+    const { imageUrl, style, roomType } = await req.json();
 
-    if (!imageUrl || !style) {
+    if (!imageUrl || !style || !roomType) {
       return new Response(
-        JSON.stringify({ error: "Missing imageUrl or style" }),
+        JSON.stringify({ error: "Missing imageUrl, style, or roomType" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -30,22 +30,35 @@ serve(async (req) => {
       credentials: FAL_KEY,
     });
 
-    // Style prompts with architectural preservation and logical placement
+    // Enhanced style prompts with architectural preservation and logical placement
     const stylePrompts: Record<string, string> = {
-      modern: "Modern interior design with clean lines, neutral colors, contemporary furniture, minimalist decor, and natural lighting. IMPORTANT: Keep all windows, doors, and structural elements in their EXACT original positions. Place all furniture logically - sofas facing TVs, dining tables centered in space, beds against walls, desks near windows. Ensure TVs are mounted at eye level on appropriate walls. Professional staging photography.",
-      traditional: "Traditional interior design with classic furniture, warm colors, elegant details, timeless decor, and sophisticated ambiance. IMPORTANT: Keep all windows, doors, and structural elements in their EXACT original positions. Place all furniture logically - sofas facing TVs, dining tables centered in space, beds against walls, desks near windows. Ensure TVs are mounted at eye level on appropriate walls. Professional staging photography.",
-      minimalist: "Minimalist interior design with simple furniture, neutral palette, uncluttered space, functional pieces, and clean aesthetic. IMPORTANT: Keep all windows, doors, and structural elements in their EXACT original positions. Place all furniture logically - sofas facing TVs, dining tables centered in space, beds against walls, desks near windows. Ensure TVs are mounted at eye level on appropriate walls. Professional staging photography.",
-      scandinavian: "Scandinavian interior design with light wood furniture, cozy textiles, natural elements, bright space, and hygge atmosphere. IMPORTANT: Keep all windows, doors, and structural elements in their EXACT original positions. Place all furniture logically - sofas facing TVs, dining tables centered in space, beds against walls, desks near windows. Ensure TVs are mounted at eye level on appropriate walls. Professional staging photography.",
-      industrial: "Industrial interior design with exposed elements, metal accents, brick walls, urban aesthetic, and modern fixtures. IMPORTANT: Keep all windows, doors, and structural elements in their EXACT original positions. Place all furniture logically - sofas facing TVs, dining tables centered in space, beds against walls, desks near windows. Ensure TVs are mounted at eye level on appropriate walls. Professional staging photography.",
+      modern: "Ultra-modern interior design with sleek geometric furniture, monochromatic color palette with metallic accents, floor-to-ceiling windows, recessed LED lighting, polished concrete or light hardwood floors, abstract art pieces, and designer fixtures. Features clean horizontal lines, floating shelves, glass coffee tables, and statement lighting. High-end contemporary staging with premium materials.",
+      traditional: "Elegant traditional interior design with rich wood furniture (mahogany, cherry, oak), ornate details and crown molding, Persian or Oriental rugs, crystal chandeliers, silk or velvet upholstery in jewel tones, classic oil paintings in gilded frames, antique accent pieces, table lamps with fabric shades, and symmetrical furniture arrangements. Timeless sophistication with layered textures.",
+      minimalist: "Japanese-inspired minimalist design with low-profile furniture, pure white walls, natural light maximization, hidden storage solutions, single statement plant (monstera or fiddle leaf fig), neutral color palette (whites, beiges, soft grays), uncluttered surfaces, simple geometric shapes, natural materials (light wood, linen, cotton), and zen-like serenity. Less is more philosophy with intentional negative space.",
+      scandinavian: "Scandinavian hygge design with blonde wood furniture (birch, ash, pine), sheepskin throws, chunky knit textiles, ceramic pottery, pendant lighting with warm bulbs, indoor plants, neutral base with pastel accents, functional storage baskets, cozy reading nooks, natural fiber rugs, and emphasis on comfort and warmth. Bright, airy spaces with organic shapes.",
+      industrial: "Urban industrial loft design with exposed brick walls, visible ductwork and pipes, Edison bulb lighting fixtures, metal and reclaimed wood furniture, leather seating, concrete floors, steel-framed windows, vintage factory-inspired pieces, metal shelving units, and warm amber lighting to soften the raw aesthetic. Modern warehouse conversion vibe with character.",
     };
 
-    const prompt = stylePrompts[style] || stylePrompts.modern;
+    const roomTypeContext: Record<string, string> = {
+      "living-room": "Focus on seating arrangements around a focal point (TV, fireplace, or window view). Include a sofa, accent chairs, coffee table, side tables, area rug, and entertainment center. Ensure proper conversation distance and traffic flow.",
+      "bedroom": "Center the bed against the main wall (never blocking windows). Include nightstands on both sides, dresser, optional seating area, bedside lamps, artwork above bed, and soft textiles. Create a restful, symmetrical layout.",
+      "kitchen": "Maintain the existing cabinetry and appliance positions. Add bar stools if there's an island, pendant lighting, decorative backsplash accents, fresh flowers or fruit bowl, and small appliances. Keep counters mostly clear for a clean look.",
+      "dining-room": "Center the dining table in the space with chairs (6-8 for standard rooms). Add a statement chandelier or pendant light centered above the table, sideboard or buffet against a wall, area rug under the table, and a centerpiece. Ensure comfortable walking space around the table.",
+      "bathroom": "Preserve all existing fixtures (toilet, sink, tub/shower). Add plush towels, bath mat, decorative containers, mirrors with good lighting, small plants, and spa-like accessories. Create a hotel-bathroom aesthetic.",
+      "office": "Position desk near natural light source. Include an ergonomic chair, bookshelf, desk lamp, organized storage, minimal desk accessories, inspirational artwork, and possibly a small seating area. Professional yet personal workspace.",
+      "outdoor": "Design appropriate patio or deck furniture arrangements. Include seating areas with weather-resistant furniture, outdoor rugs, planters with greenery, string lights or lanterns, and create defined entertaining zones.",
+    };
 
-    console.log("Generating design with style:", style);
+    const roomContext = roomTypeContext[roomType] || roomTypeContext["living-room"];
+    const stylePrompt = stylePrompts[style] || stylePrompts.modern;
+    
+    const prompt = `${stylePrompt} ROOM TYPE: ${roomType}. ${roomContext} CRITICAL REQUIREMENTS: Keep all windows, doors, walls, and architectural features in their EXACT original positions and sizes. No structural changes whatsoever. Professional real estate staging photography, 8K quality, natural daylight, shot with wide-angle lens.`;
+
+    console.log("Generating design with style:", style, "and room type:", roomType);
 
     const result = await fal.subscribe("fal-ai/nano-banana-pro/edit", {
       input: {
-        prompt: `Transform this empty room into a beautifully staged space. Preserve the exact room structure - keep windows, doors, walls, and architectural features in their original positions and sizes. Add furniture and decor with ${prompt}`,
+        prompt: `Transform this empty ${roomType.replace('-', ' ')} into a beautifully staged space. ${prompt}`,
         num_images: 1,
         aspect_ratio: "auto",
         output_format: "png",

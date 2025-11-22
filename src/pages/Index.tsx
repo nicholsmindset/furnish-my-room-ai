@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import Hero from "@/components/Hero";
 import UploadSection from "@/components/UploadSection";
+import RoomTypeSelector, { RoomType } from "@/components/RoomTypeSelector";
 import StyleSelector, { DesignStyle } from "@/components/StyleSelector";
 import LoadingState from "@/components/LoadingState";
 import ResultsDisplay from "@/components/ResultsDisplay";
-import { useToast } from "@/hooks/use-toast";
+import ImageHistory from "@/components/ImageHistory";
 
-type AppState = "hero" | "upload" | "style-select" | "generating" | "results";
+type AppState = "hero" | "upload" | "room-type-select" | "style-select" | "generating" | "results" | "history";
 
 export default function Index() {
   const [appState, setAppState] = useState<AppState>("hero");
@@ -14,6 +17,7 @@ export default function Index() {
   const [originalImageUrl, setOriginalImageUrl] = useState<string>("");
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string>("");
   const [progress, setProgress] = useState(0);
+  const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(null);
   const { toast } = useToast();
 
   const handleGetStarted = () => {
@@ -26,6 +30,11 @@ export default function Index() {
   const handleImageSelect = (file: File) => {
     setSelectedImage(file);
     setOriginalImageUrl(URL.createObjectURL(file));
+    setAppState("room-type-select");
+  };
+
+  const handleRoomTypeSelect = (roomType: RoomType) => {
+    setSelectedRoomType(roomType);
     setAppState("style-select");
   };
 
@@ -36,7 +45,7 @@ export default function Index() {
   };
 
   const handleStyleSelect = async (style: DesignStyle) => {
-    if (!selectedImage) return;
+    if (!selectedImage || !selectedRoomType) return;
 
     setAppState("generating");
     setProgress(0);
@@ -71,7 +80,11 @@ export default function Index() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ imageUrl: base64Image, style }),
+          body: JSON.stringify({ 
+            imageUrl: base64Image, 
+            style,
+            roomType: selectedRoomType 
+          }),
         }
       );
 
@@ -86,6 +99,19 @@ export default function Index() {
       setProgress(100);
       
       setGeneratedImageUrl(data.imageUrl);
+
+      // Save to history
+      try {
+        await supabase.from("design_generations").insert({
+          original_image_url: base64Image,
+          generated_image_url: data.imageUrl,
+          style: style,
+          room_type: selectedRoomType,
+        });
+      } catch (historyError) {
+        console.error("Error saving to history:", historyError);
+        // Don't fail the whole operation if history save fails
+      }
       
       setTimeout(() => {
         setAppState("results");
@@ -112,25 +138,41 @@ export default function Index() {
     setOriginalImageUrl("");
     setGeneratedImageUrl("");
     setProgress(0);
+    setSelectedRoomType(null);
     setAppState("hero");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleViewHistory = () => {
+    setAppState("history");
+  };
+
+  const handleSelectFromHistory = (original: string, generated: string) => {
+    setOriginalImageUrl(original);
+    setGeneratedImageUrl(generated);
+    setAppState("results");
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {appState === "hero" && <Hero onGetStarted={handleGetStarted} />}
+      {appState === "hero" && (
+        <Hero onGetStarted={handleGetStarted} onViewHistory={handleViewHistory} />
+      )}
 
-      {(appState === "upload" || appState === "style-select") && (
-        <>
-          <UploadSection
-            onImageSelect={handleImageSelect}
-            selectedImage={selectedImage}
-            onClearImage={handleClearImage}
-          />
-          {appState === "style-select" && (
-            <StyleSelector onStyleSelect={handleStyleSelect} />
-          )}
-        </>
+      {appState === "upload" && (
+        <UploadSection
+          onImageSelect={handleImageSelect}
+          selectedImage={selectedImage}
+          onClearImage={handleClearImage}
+        />
+      )}
+
+      {appState === "room-type-select" && (
+        <RoomTypeSelector onRoomTypeSelect={handleRoomTypeSelect} />
+      )}
+
+      {appState === "style-select" && (
+        <StyleSelector onStyleSelect={handleStyleSelect} />
       )}
 
       {appState === "generating" && <LoadingState progress={progress} />}
@@ -140,6 +182,13 @@ export default function Index() {
           originalImage={originalImageUrl}
           generatedImage={generatedImageUrl}
           onBack={handleBack}
+        />
+      )}
+
+      {appState === "history" && (
+        <ImageHistory
+          onBack={() => setAppState("hero")}
+          onSelectGeneration={handleSelectFromHistory}
         />
       )}
 
