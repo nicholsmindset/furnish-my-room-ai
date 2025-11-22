@@ -63,7 +63,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/?upload=true`,
+      success_url: `${req.headers.get("origin")}/dashboard`,
       cancel_url: `${req.headers.get("origin")}/pricing`,
     });
 
