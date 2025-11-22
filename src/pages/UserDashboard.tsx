@@ -242,25 +242,27 @@ export default function UserDashboard() {
             </CardContent>
           </Card>
 
-          {/* Billing Management Card */}
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle>Billing & Subscription Management</CardTitle>
-              <CardDescription>
-                Access your Stripe customer portal to manage payment methods, view invoices, and update billing information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                variant="outline"
-                onClick={handleManageSubscription}
-                disabled={loading === 'portal'}
-              >
-                <Settings className="w-5 h-5 mr-2" />
-                {loading === 'portal' ? 'Loading...' : 'Open Stripe Customer Portal'}
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Billing Management Card - Only show for subscribed users */}
+          {subscription.subscribed && (
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle>Billing & Subscription Management</CardTitle>
+                <CardDescription>
+                  Access your Stripe customer portal to manage payment methods, view invoices, and update billing information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  onClick={handleManageSubscription}
+                  disabled={loading === 'portal'}
+                >
+                  <Settings className="w-5 h-5 mr-2" />
+                  {loading === 'portal' ? 'Loading...' : 'Open Stripe Customer Portal'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Actions */}
           <Card className="lg:col-span-3">
