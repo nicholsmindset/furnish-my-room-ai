@@ -108,10 +108,9 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      // Fetch main analytics
+      // Fetch main analytics using RPC function
       const { data: analyticsData, error: analyticsError } = await supabase
-        .from('admin_analytics')
-        .select('*')
+        .rpc('get_admin_analytics')
         .single();
 
       if (analyticsError) throw analyticsError;

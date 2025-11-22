@@ -15,9 +15,46 @@ serve(async (req) => {
   try {
     const { imageUrl, style, roomType } = await req.json();
 
+    // Validate required parameters exist
     if (!imageUrl || !style || !roomType) {
       return new Response(
         JSON.stringify({ error: "Missing imageUrl, style, or roomType" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate style against allowed values
+    const ALLOWED_STYLES = ['modern', 'traditional', 'minimalist', 'scandinavian', 'industrial'];
+    if (!ALLOWED_STYLES.includes(style)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid style. Must be one of: modern, traditional, minimalist, scandinavian, industrial" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate roomType against allowed values
+    const ALLOWED_ROOM_TYPES = ['living-room', 'bedroom', 'kitchen', 'dining-room', 'bathroom', 'office', 'outdoor'];
+    if (!ALLOWED_ROOM_TYPES.includes(roomType)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid room type. Must be one of: living-room, bedroom, kitchen, dining-room, bathroom, office, outdoor" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate imageUrl is a proper data URL
+    if (!imageUrl.startsWith('data:image/')) {
+      return new Response(
+        JSON.stringify({ error: "Invalid image format. Must be a base64 data URL starting with 'data:image/'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate image size (max 10MB base64)
+    const imageSize = imageUrl.length;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (imageSize > maxSize) {
+      return new Response(
+        JSON.stringify({ error: "Image too large. Maximum size is 10MB" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -29,104 +66,111 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Get user from authorization header (optional for free tier)
+    // Authentication is now required - get user from authorization header
     const authHeader = req.headers.get("Authorization");
-    let userId: string | null = null;
-
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      if (!userError && userData.user) {
-        userId = userData.user.id;
-      }
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // If user is authenticated, check and deduct credits
-    if (userId) {
-      // Check current credits
-      const { data: creditsData, error: creditsError } = await supabaseClient
-        .from("user_credits")
-        .select("credits_remaining")
-        .eq("user_id", userId)
-        .single();
-
-      if (creditsError || !creditsData) {
-        return new Response(
-          JSON.stringify({ error: "Failed to check credits" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (creditsData.credits_remaining < 1) {
-        return new Response(
-          JSON.stringify({ error: "Insufficient credits. Please upgrade your plan." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Deduct credit using database function
-      const { data: deductSuccess, error: deductError } = await supabaseClient.rpc(
-        "deduct_credits",
-        { _user_id: userId, _credits_cost: 1 }
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
 
-      if (deductError || !deductSuccess) {
-        return new Response(
-          JSON.stringify({ error: "Failed to deduct credits" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const userId = userData.user.id;
 
-      // Log usage
-      await supabaseClient.from("usage_logs").insert({
-        user_id: userId,
-        action_type: "design_generation",
-        credits_cost: 1,
-        metadata: { style, room_type: roomType },
-      });
+    // Check and deduct credits
+    // Check current credits
+    const { data: creditsData, error: creditsError } = await supabaseClient
+      .from("user_credits")
+      .select("credits_remaining")
+      .eq("user_id", userId)
+      .single();
 
-      // Check if credits are low (5 or less) and send email
-      const { data: updatedCredits } = await supabaseClient
-        .from("user_credits")
-        .select("credits_remaining")
+    if (creditsError || !creditsData) {
+      return new Response(
+        JSON.stringify({ error: "Failed to check credits" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (creditsData.credits_remaining < 1) {
+      return new Response(
+        JSON.stringify({ error: "Insufficient credits. Please upgrade your plan." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Deduct credit using database function
+    const { data: deductSuccess, error: deductError } = await supabaseClient.rpc(
+      "deduct_credits",
+      { _user_id: userId, _credits_cost: 1 }
+    );
+
+    if (deductError || !deductSuccess) {
+      return new Response(
+        JSON.stringify({ error: "Failed to deduct credits" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Log usage
+    await supabaseClient.from("usage_logs").insert({
+      user_id: userId,
+      action_type: "design_generation",
+      credits_cost: 1,
+      metadata: { style, room_type: roomType },
+    });
+
+    // Check if credits are low (5 or less) and send email
+    const { data: updatedCredits } = await supabaseClient
+      .from("user_credits")
+      .select("credits_remaining")
+      .eq("user_id", userId)
+      .single();
+
+    if (updatedCredits && updatedCredits.credits_remaining <= 5) {
+      // Get user email and subscription info from profiles
+      const { data: profileData } = await supabaseClient
+        .from("profiles")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      const { data: subData } = await supabaseClient
+        .from("user_subscriptions")
+        .select("subscription_tier")
         .eq("user_id", userId)
         .single();
 
-      if (updatedCredits && updatedCredits.credits_remaining <= 5) {
-        // Get user email and subscription info from profiles
-        const { data: profileData } = await supabaseClient
-          .from("profiles")
-          .select("email")
-          .eq("id", userId)
-          .single();
-
-        const { data: subData } = await supabaseClient
-          .from("user_subscriptions")
-          .select("subscription_tier")
-          .eq("user_id", userId)
-          .single();
-
-        if (profileData?.email) {
-          try {
-            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+      if (profileData?.email) {
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              type: "credits_low",
+              email: profileData.email,
+              data: {
+                userName: profileData.email.split("@")[0],
+                creditsRemaining: updatedCredits.credits_remaining,
+                planName: subData?.subscription_tier || "Free",
               },
-              body: JSON.stringify({
-                type: "credits_low",
-                email: profileData.email,
-                data: {
-                  userName: profileData.email.split("@")[0],
-                  creditsRemaining: updatedCredits.credits_remaining,
-                  planName: subData?.subscription_tier || "Free",
-                },
-              }),
-            });
-          } catch (emailError) {
-            console.error("Failed to send low credits email:", emailError);
-          }
+            }),
+          });
+        } catch (emailError) {
+          console.error("Failed to send low credits email:", emailError);
         }
       }
     }
