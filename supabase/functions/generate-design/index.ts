@@ -84,6 +84,51 @@ serve(async (req) => {
         credits_cost: 1,
         metadata: { style, room_type: roomType },
       });
+
+      // Check if credits are low (5 or less) and send email
+      const { data: updatedCredits } = await supabaseClient
+        .from("user_credits")
+        .select("credits_remaining")
+        .eq("user_id", userId)
+        .single();
+
+      if (updatedCredits && updatedCredits.credits_remaining <= 5) {
+        // Get user email and subscription info from profiles
+        const { data: profileData } = await supabaseClient
+          .from("profiles")
+          .select("email")
+          .eq("id", userId)
+          .single();
+
+        const { data: subData } = await supabaseClient
+          .from("user_subscriptions")
+          .select("subscription_tier")
+          .eq("user_id", userId)
+          .single();
+
+        if (profileData?.email) {
+          try {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              },
+              body: JSON.stringify({
+                type: "credits_low",
+                email: profileData.email,
+                data: {
+                  userName: profileData.email.split("@")[0],
+                  creditsRemaining: updatedCredits.credits_remaining,
+                  planName: subData?.subscription_tier || "Free",
+                },
+              }),
+            });
+          } catch (emailError) {
+            console.error("Failed to send low credits email:", emailError);
+          }
+        }
+      }
     }
 
     const FAL_KEY = Deno.env.get("FAL_KEY");

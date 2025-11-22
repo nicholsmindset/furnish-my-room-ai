@@ -1,9 +1,16 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import ProblemSolution from "@/components/ProblemSolution";
+import Features from "@/components/Features";
+import HowItWorks from "@/components/HowItWorks";
+import Testimonials from "@/components/Testimonials";
+import FAQ from "@/components/FAQ";
+import FinalCTA from "@/components/FinalCTA";
 import UploadSection from "@/components/UploadSection";
 import RoomTypeSelector, { RoomType } from "@/components/RoomTypeSelector";
 import StyleSelector, { DesignStyle } from "@/components/StyleSelector";
@@ -11,6 +18,7 @@ import LoadingState from "@/components/LoadingState";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import ImageHistory from "@/components/ImageHistory";
 import { CustomStyleParams } from "@/components/CustomStyleControls";
+import { Sparkles } from "lucide-react";
 
 type AppState = "hero" | "upload" | "room-type-select" | "style-select" | "generating" | "results" | "history";
 
@@ -183,7 +191,15 @@ export default function Index() {
       {appState !== "hero" && <Navbar />}
       
       {appState === "hero" && (
-        <Hero onGetStarted={handleGetStarted} onViewHistory={handleViewHistory} />
+        <>
+          <Hero onGetStarted={handleGetStarted} onViewHistory={handleViewHistory} />
+          <ProblemSolution />
+          <Features />
+          <HowItWorks />
+          <Testimonials />
+          <FAQ />
+          <FinalCTA onGetStarted={handleGetStarted} />
+        </>
       )}
 
       {appState === "upload" && (
@@ -225,8 +241,31 @@ export default function Index() {
       )}
 
       {/* Footer */}
-      <footer className="py-8 text-center text-muted-foreground text-sm border-t border-border mt-16">
-        <p>&copy; {new Date().getFullYear()} RoomReimagine. All rights reserved.</p>
+      <footer className="py-8 px-6 text-center text-muted-foreground text-sm border-t border-border">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-accent" />
+            <span className="font-bold text-foreground">RoomReimagine</span>
+          </div>
+          <div className="flex gap-6">
+            <Link to="/pricing" className="hover:text-accent transition-colors">
+              Pricing
+            </Link>
+            <Link to="/gallery" className="hover:text-accent transition-colors">
+              Gallery
+            </Link>
+            <a href="#" className="hover:text-accent transition-colors">
+              Privacy
+            </a>
+            <a href="#" className="hover:text-accent transition-colors">
+              Terms
+            </a>
+            <a href="#" className="hover:text-accent transition-colors">
+              Support
+            </a>
+          </div>
+          <p>&copy; {new Date().getFullYear()} RoomReimagine. All rights reserved.</p>
+        </div>
       </footer>
     </div>
   );

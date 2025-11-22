@@ -116,6 +116,29 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
+
+      // Send payment successful email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+          },
+          body: JSON.stringify({
+            type: "payment_successful",
+            email: user.email,
+            data: {
+              userName: user.email.split("@")[0],
+              planName: tier.charAt(0).toUpperCase() + tier.slice(1),
+              amount: tier === "pro" ? "$29.00" : "$99.00",
+              nextBillingDate: new Date(subscription.current_period_end * 1000).toLocaleDateString(),
+            },
+          }),
+        });
+      } catch (emailError) {
+        console.error("Failed to send payment email:", emailError);
+      }
     } else {
       logStep("No active subscription found");
     }
