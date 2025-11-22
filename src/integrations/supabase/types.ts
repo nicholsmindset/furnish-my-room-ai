@@ -254,12 +254,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_analytics: {
+        Row: {
+          active_subscriptions: number | null
+          avg_credits_per_user: number | null
+          business_subscribers: number | null
+          designs_last_30_days: number | null
+          designs_last_7_days: number | null
+          new_users_30_days: number | null
+          new_users_7_days: number | null
+          pro_subscribers: number | null
+          total_credits_used: number | null
+          total_designs: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       deduct_credits: {
         Args: { _credits_cost?: number; _user_id: string }
         Returns: boolean
+      }
+      get_design_generation_stats: {
+        Args: never
+        Returns: {
+          date: string
+          designs_generated: number
+          unique_users: number
+        }[]
+      }
+      get_subscription_metrics: {
+        Args: never
+        Returns: {
+          active_count: number
+          monthly_revenue: number
+          tier: string
+        }[]
+      }
+      get_top_users_by_designs: {
+        Args: { limit_count?: number }
+        Returns: {
+          credits_used: number
+          design_count: number
+          subscription_tier: string
+          user_email: string
+        }[]
+      }
+      get_user_growth_data: {
+        Args: never
+        Returns: {
+          date: string
+          new_users: number
+          total_users: number
+        }[]
       }
       has_role: {
         Args: {
@@ -271,7 +319,7 @@ export type Database = {
       reset_monthly_credits: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "free" | "pro" | "business"
+      app_role: "free" | "pro" | "business" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -399,7 +447,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["free", "pro", "business"],
+      app_role: ["free", "pro", "business", "admin"],
     },
   },
 } as const

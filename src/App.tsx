@@ -10,6 +10,7 @@ import Pricing from "./pages/Pricing";
 import Favorites from "./pages/Favorites";
 import BatchProcessing from "./pages/BatchProcessing";
 import SharedGallery from "./pages/SharedGallery";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/favorites" element={<Favorites />} />
             <Route path="/batch" element={<BatchProcessing />} />
             <Route path="/gallery" element={<SharedGallery />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
