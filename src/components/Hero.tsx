@@ -5,9 +5,10 @@ import heroBackground from "@/assets/hero-background.jpg";
 
 interface HeroProps {
   onGetStarted: () => void;
+  onViewHistory?: () => void;
 }
 
-export default function Hero({ onGetStarted }: HeroProps) {
+export default function Hero({ onGetStarted, onViewHistory }: HeroProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Gradient Overlay */}
@@ -40,14 +41,26 @@ export default function Hero({ onGetStarted }: HeroProps) {
           Professional virtual staging in seconds. Upload your empty room photo and let AI create stunning, photorealistic designs.
         </p>
 
-        <Button
-          size="lg"
-          onClick={onGetStarted}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105"
-        >
-          <Upload className="w-5 h-5 mr-2" />
-          Start Staging Now
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button
+            size="lg"
+            onClick={onGetStarted}
+            className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105"
+          >
+            <Upload className="w-5 h-5 mr-2" />
+            Start Staging Now
+          </Button>
+          {onViewHistory && (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={onViewHistory}
+              className="px-8 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105 bg-card/10 backdrop-blur-md border-accent/30"
+            >
+              View History
+            </Button>
+          )}
+        </div>
 
         {/* Stats Section */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
