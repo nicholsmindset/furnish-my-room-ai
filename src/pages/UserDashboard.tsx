@@ -71,10 +71,25 @@ export default function UserDashboard() {
   };
 
   const handleUpgrade = async (tier: 'pro' | 'business') => {
-    if (!user || !session) return;
+    console.log('handleUpgrade called with tier:', tier);
+    console.log('User:', user?.email);
+    console.log('Session exists:', !!session);
+    
+    if (!user || !session) {
+      console.error('Missing user or session');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to upgrade your subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(tier);
+    console.log('Product ID:', PRODUCT_IDS[tier]);
+    
     try {
+      console.log('Invoking create-checkout function...');
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -82,16 +97,22 @@ export default function UserDashboard() {
         body: { productId: PRODUCT_IDS[tier] },
       });
 
+      console.log('Response data:', data);
+      console.log('Response error:', error);
+
       if (error) throw error;
       
       if (data?.url) {
+        console.log('Redirecting to:', data.url);
         window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
       }
     } catch (error) {
       console.error("Checkout error:", error);
       toast({
         title: "Error",
-        description: "Failed to start checkout. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to start checkout. Please try again.",
         variant: "destructive",
       });
     } finally {
