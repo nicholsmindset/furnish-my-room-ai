@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface FinalCTAProps {
-  onGetStarted: () => void;
-}
+export default function FinalCTA() {
+  const navigate = useNavigate();
 
-export default function FinalCTA({ onGetStarted }: FinalCTAProps) {
   return (
     <section className="py-20 bg-gradient-to-b from-background to-muted/20">
       <div className="max-w-4xl mx-auto px-6">
@@ -22,7 +21,7 @@ export default function FinalCTA({ onGetStarted }: FinalCTAProps) {
           <CardContent className="flex flex-col items-center gap-4">
             <Button
               size="lg"
-              onClick={onGetStarted}
+              onClick={() => navigate("/pricing")}
               className="bg-accent hover:bg-accent/90 text-accent-foreground px-12 py-6 text-lg rounded-lg shadow-large transition-all hover:scale-105"
             >
               <Upload className="w-5 h-5 mr-2" />

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,9 +36,24 @@ export default function Index() {
     lighting: 70,
   });
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (searchParams.get("upload") === "true" && user && subscription.subscribed) {
+      setAppState("upload");
+      setTimeout(() => {
+        window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+      }, 100);
+    }
+  }, [searchParams, user, subscription.subscribed]);
 
   const handleGetStarted = () => {
+    if (!user || !subscription.subscribed) {
+      navigate("/pricing");
+      return;
+    }
     setAppState("upload");
     setTimeout(() => {
       window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
@@ -192,13 +207,13 @@ export default function Index() {
       
       {appState === "hero" && (
         <>
-          <Hero onGetStarted={handleGetStarted} onViewHistory={handleViewHistory} />
+          <Hero onViewHistory={handleViewHistory} />
           <ProblemSolution />
           <Features />
           <HowItWorks />
           <Testimonials />
           <FAQ />
-          <FinalCTA onGetStarted={handleGetStarted} />
+          <FinalCTA />
         </>
       )}
 
@@ -245,7 +260,7 @@ export default function Index() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-accent" />
-            <span className="font-bold text-foreground">RoomReimagine</span>
+            <span className="font-bold text-foreground">Noonah Design</span>
           </div>
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-accent transition-colors">
@@ -264,7 +279,7 @@ export default function Index() {
               Support
             </a>
           </div>
-          <p>&copy; {new Date().getFullYear()} RoomReimagine. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Noonah Design. All rights reserved.</p>
         </div>
       </footer>
     </div>

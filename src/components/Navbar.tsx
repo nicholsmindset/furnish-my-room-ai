@@ -32,7 +32,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <Sparkles className="w-6 h-6 text-accent" />
-          <span className="text-xl font-bold">RoomReimagine</span>
+          <span className="text-xl font-bold">Noonah Design</span>
         </Link>
 
         {/* Navigation Links */}
