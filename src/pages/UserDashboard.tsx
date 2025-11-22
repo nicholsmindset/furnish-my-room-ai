@@ -1,6 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,11 +18,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ArrowUpRight, CreditCard, Settings, Sparkles, Zap, Crown } from "lucide-react";
+import { ArrowUpRight, CreditCard, Settings, Sparkles, Zap, Crown, AlertTriangle, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const PRODUCT_IDS = {
@@ -21,11 +30,45 @@ const PRODUCT_IDS = {
   business: "prod_RZkhKK9YPWl8YJ",
 };
 
+interface UsageLog {
+  id: string;
+  created_at: string;
+  action_type: string;
+  credits_cost: number;
+  metadata: any;
+}
+
 export default function UserDashboard() {
   const { user, session, subscription, credits } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
+  const [usageHistory, setUsageHistory] = useState<UsageLog[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUsageHistory();
+    }
+  }, [user]);
+
+  const fetchUsageHistory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('usage_logs')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setUsageHistory(data || []);
+    } catch (error) {
+      console.error('Error fetching usage history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const handleUpgrade = async (tier: 'pro' | 'business') => {
     if (!user || !session) return;
@@ -122,6 +165,28 @@ export default function UserDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Low Credit Alert */}
+          {credits.credits_remaining <= 5 && credits.credits_remaining > 0 && (
+            <Alert variant="destructive" className="lg:col-span-3">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Low Credits Warning</AlertTitle>
+              <AlertDescription>
+                You have only {credits.credits_remaining} credit{credits.credits_remaining !== 1 ? 's' : ''} remaining. 
+                Upgrade your plan to continue generating designs without interruption.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {credits.credits_remaining === 0 && (
+            <Alert variant="destructive" className="lg:col-span-3">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Out of Credits</AlertTitle>
+              <AlertDescription>
+                You've used all your available credits. Upgrade to a paid plan to continue creating stunning designs.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Current Plan Card */}
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -263,6 +328,67 @@ export default function UserDashboard() {
               </CardContent>
             </Card>
           )}
+
+          {/* Usage History */}
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                <CardTitle>Usage History</CardTitle>
+              </div>
+              <CardDescription>
+                Your recent design generations and credit usage
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingHistory ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Loading usage history...
+                </div>
+              ) : usageHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No usage history yet. Start creating designs to see your activity here.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead className="text-right">Credits Cost</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usageHistory.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium">
+                            {new Date(log.created_at).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            <span className="capitalize">
+                              {log.action_type.replace(/_/g, ' ')}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary">
+                              -{log.credits_cost} credit{log.credits_cost !== 1 ? 's' : ''}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Quick Actions */}
           <Card className="lg:col-span-3">
