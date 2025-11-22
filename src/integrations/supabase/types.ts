@@ -297,6 +297,22 @@ export type Database = {
         Args: { _credits_cost?: number; _user_id: string }
         Returns: boolean
       }
+      get_admin_analytics: {
+        Args: never
+        Returns: {
+          active_subscriptions: number
+          avg_credits_per_user: number
+          business_subscribers: number
+          designs_last_30_days: number
+          designs_last_7_days: number
+          new_users_30_days: number
+          new_users_7_days: number
+          pro_subscribers: number
+          total_credits_used: number
+          total_designs: number
+          total_users: number
+        }[]
+      }
       get_all_users_admin: {
         Args: never
         Returns: {
