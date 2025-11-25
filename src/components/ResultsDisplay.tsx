@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Heart, Grid3X3, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,30 @@ export default function ResultsDisplay({
   const [shareLink, setShareLink] = useState<string | null>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
+
+  // Check if already favorited when component loads
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!user || !generationId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("favorites")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("generation_id", generationId)
+          .maybeSingle();
+
+        if (!error && data) {
+          setIsFavorited(true);
+        }
+      } catch (error) {
+        console.error("Error checking favorite status:", error);
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [user, generationId]);
 
   const handleMouseDown = () => setIsDragging(true);
   const handleMouseUp = () => setIsDragging(false);

@@ -1,7 +1,8 @@
-import { Home, Armchair, Minimize2, TreePine, Wrench, Settings } from "lucide-react";
+import { Home, Armchair, Minimize2, TreePine, Wrench, Settings, Clock, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CustomStyleControls, { CustomStyleParams } from "./CustomStyleControls";
 
 export type DesignStyle = "modern" | "traditional" | "minimalist" | "scandinavian" | "industrial";
@@ -9,6 +10,8 @@ export type DesignStyle = "modern" | "traditional" | "minimalist" | "scandinavia
 interface StyleSelectorProps {
   onStyleSelect: (style: DesignStyle) => void;
   disabled?: boolean;
+  rateLimitSeconds?: number;
+  creditsRemaining?: number;
   customParams?: CustomStyleParams;
   onCustomParamsChange?: (params: CustomStyleParams) => void;
 }
@@ -51,11 +54,65 @@ const styles: Array<{
   },
 ];
 
-export default function StyleSelector({ onStyleSelect, disabled, customParams, onCustomParamsChange }: StyleSelectorProps) {
+export default function StyleSelector({ onStyleSelect, disabled, rateLimitSeconds, creditsRemaining, customParams, onCustomParamsChange }: StyleSelectorProps) {
   const [showCustomControls, setShowCustomControls] = useState(false);
+  const navigate = useNavigate();
+
+  const hasNoCredits = creditsRemaining !== undefined && creditsRemaining <= 0;
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${secs}s`;
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 py-12 space-y-8">
+      {/* Rate Limit Banner */}
+      {rateLimitSeconds && rateLimitSeconds > 0 && (
+        <div className="max-w-md mx-auto bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Rate limit reached
+            </p>
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              Please wait <span className="font-mono font-bold">{formatTime(rateLimitSeconds)}</span> before generating again
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* No Credits Banner */}
+      {hasNoCredits && !rateLimitSeconds && (
+        <div className="max-w-md mx-auto bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                No credits remaining
+              </p>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Upgrade your plan to continue generating designs
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate("/pricing")}
+            className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white"
+          >
+            View Plans & Upgrade
+          </Button>
+        </div>
+      )}
+
       <div className="text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-3">Choose Your Design Style</h2>
         <p className="text-muted-foreground text-lg">

@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Calendar } from "lucide-react";
+import { ArrowLeft, Download, Calendar, Trash2, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -23,6 +33,8 @@ interface ImageHistoryProps {
 export default function ImageHistory({ onBack, onSelectGeneration }: ImageHistoryProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,6 +85,51 @@ export default function ImageHistory({ onBack, onSelectGeneration }: ImageHistor
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    setDeleting(true);
+    try {
+      // First, delete any favorites referencing this design
+      await supabase
+        .from("favorites")
+        .delete()
+        .eq("generation_id", deleteId);
+
+      // Then, delete any shared links
+      await supabase
+        .from("shared_designs")
+        .delete()
+        .eq("generation_id", deleteId);
+
+      // Finally, delete the design itself
+      const { error } = await supabase
+        .from("design_generations")
+        .delete()
+        .eq("id", deleteId);
+
+      if (error) throw error;
+
+      // Update local state
+      setHistory((prev) => prev.filter((item) => item.id !== deleteId));
+
+      toast({
+        title: "Design deleted",
+        description: "The design has been permanently deleted.",
+      });
+    } catch (error) {
+      console.error("Error deleting design:", error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete the design. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen p-8 bg-gradient-to-b from-background via-background to-muted/20">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -94,7 +151,7 @@ export default function ImageHistory({ onBack, onSelectGeneration }: ImageHistor
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {history.map((item) => (
-              <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
                 <div
                   className="cursor-pointer"
                   onClick={() => onSelectGeneration(item.original_image_url, item.generated_image_url)}
@@ -119,11 +176,11 @@ export default function ImageHistory({ onBack, onSelectGeneration }: ImageHistor
                     </div>
                   </div>
                 </div>
-                <div className="px-4 pb-4">
+                <div className="px-4 pb-4 flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full gap-2"
+                    className="flex-1 gap-2"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDownload(
@@ -135,12 +192,53 @@ export default function ImageHistory({ onBack, onSelectGeneration }: ImageHistor
                     <Download className="w-4 h-4" />
                     Download
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteId(item.id);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this design?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The design will be permanently deleted
+              from your history, including any favorites or shared links.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

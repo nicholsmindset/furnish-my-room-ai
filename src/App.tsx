@@ -13,6 +13,7 @@ import SharedGallery from "./pages/SharedGallery";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import SharedDesignView from "./pages/SharedDesignView";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/batch" element={<BatchProcessing />} />
             <Route path="/gallery" element={<SharedGallery />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/share/:token" element={<SharedDesignView />} />
             <Route path="/shared/:token" element={<SharedDesignView />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

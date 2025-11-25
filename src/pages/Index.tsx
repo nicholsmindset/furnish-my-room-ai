@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +18,7 @@ import LoadingState from "@/components/LoadingState";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import ImageHistory from "@/components/ImageHistory";
 import { CustomStyleParams } from "@/components/CustomStyleControls";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Clock } from "lucide-react";
 
 type AppState = "hero" | "upload" | "room-type-select" | "style-select" | "generating" | "results" | "history";
 
@@ -35,10 +35,28 @@ export default function Index() {
     furnitureStyle: "contemporary",
     lighting: 70,
   });
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const { toast } = useToast();
-  const { user, subscription } = useAuth();
+  const { user, subscription, credits, refreshCredits } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Rate limit countdown timer
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setRateLimitSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rateLimitSeconds]);
 
   useEffect(() => {
     if (searchParams.get("upload") === "true" && user && subscription.subscribed) {
@@ -125,6 +143,12 @@ export default function Index() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 429) {
+          // Rate limited - extract retry-after time
+          const retryAfter = errorData.retryAfter || 60;
+          setRateLimitSeconds(retryAfter);
+          throw new Error(`Rate limit exceeded. Please wait ${retryAfter} seconds.`);
+        }
         if (response.status === 403) {
           throw new Error("Insufficient credits. Please upgrade your plan.");
         }
@@ -162,6 +186,8 @@ export default function Index() {
       
       setTimeout(() => {
         setAppState("results");
+        // Refresh credits after successful generation
+        refreshCredits();
         toast({
           title: "Design Complete! 🎉",
           description: "Your room has been beautifully transformed.",
@@ -230,10 +256,13 @@ export default function Index() {
       )}
 
       {appState === "style-select" && (
-        <StyleSelector 
+        <StyleSelector
           onStyleSelect={handleStyleSelect}
           customParams={customParams}
           onCustomParamsChange={setCustomParams}
+          disabled={rateLimitSeconds > 0 || credits.credits_remaining <= 0}
+          rateLimitSeconds={rateLimitSeconds}
+          creditsRemaining={credits.credits_remaining}
         />
       )}
 

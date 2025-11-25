@@ -24,6 +24,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
   refreshSubscription: () => Promise<void>;
   refreshCredits: () => Promise<void>;
 }
@@ -196,16 +198,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for the password reset link.",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      toast({
+        title: "Password updated",
+        description: "Your password has been updated successfully.",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      subscription, 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      subscription,
       credits,
-      loading, 
-      signUp, 
-      signIn, 
+      loading,
+      signUp,
+      signIn,
       signOut,
+      resetPassword,
+      updatePassword,
       refreshSubscription,
       refreshCredits,
     }}>
