@@ -34,6 +34,13 @@ export default function Index() {
     colorScheme: "neutral",
     furnitureStyle: "contemporary",
     lighting: 70,
+    styleStrength: 70,
+    furnitureDensity: "balanced",
+    budgetTier: "mid-range",
+    includePlants: true,
+    includeArtwork: true,
+    includeRugs: true,
+    accentColor: "auto",
   });
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [lastSelectedStyle, setLastSelectedStyle] = useState<DesignStyle | null>(null);

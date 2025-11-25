@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sparkles, User, LogOut, Heart, History, Coins, Shield, Settings, Menu, X } from "lucide-react";
+import { Sparkles, User, LogOut, Heart, History, Coins, Shield, Settings, Menu, X, Columns } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -108,6 +108,10 @@ export default function Navbar() {
                 <DropdownMenuItem onClick={() => navigate("/")}>
                   <History className="w-4 h-4 mr-2" />
                   History
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/compare")}>
+                  <Columns className="w-4 h-4 mr-2" />
+                  Compare Designs
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/pricing")}>
                   <Sparkles className="w-4 h-4 mr-2" />
@@ -230,6 +234,13 @@ export default function Navbar() {
                     >
                       <Heart className="w-5 h-5 text-muted-foreground" />
                       Favorites
+                    </button>
+                    <button
+                      onClick={() => handleMobileNavigate("/compare")}
+                      className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-lg hover:bg-muted transition-colors text-left"
+                    >
+                      <Columns className="w-5 h-5 text-muted-foreground" />
+                      Compare Designs
                     </button>
                     <button
                       onClick={() => handleMobileNavigate("/settings")}

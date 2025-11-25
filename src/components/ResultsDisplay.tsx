@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Heart, Grid3X3, Share2 } from "lucide-react";
+import { ArrowLeft, Download, Heart, Grid3X3, Share2, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import ExportDialog from "./ExportDialog";
 
 interface ResultsDisplayProps {
   originalImage: string;
@@ -22,6 +23,7 @@ export default function ResultsDisplay({
   const [isDragging, setIsDragging] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const { toast } = useToast();
   const { user, session } = useAuth();
 
@@ -442,13 +444,22 @@ export default function ResultsDisplay({
           <Button
             variant="outline"
             size="lg"
-            onClick={() => handleDownload('webp')}
+            onClick={() => setShowExportDialog(true)}
             className="px-6"
           >
-            WebP
+            <Settings2 className="w-5 h-5 mr-2" />
+            More
           </Button>
         </div>
       </div>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        imageUrl={generatedImage}
+        fileName="roomreimagine-design"
+      />
     </div>
   );
 }

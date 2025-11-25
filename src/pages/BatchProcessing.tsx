@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, X, Loader2, Download, Home, Armchair, Minimize2, TreePine, Wrench, Bed, Utensils, UtensilsCrossed, Bath, Briefcase, Trees } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, X, Loader2, Download, Home, Armchair, Minimize2, TreePine, Wrench, Bed, Utensils, UtensilsCrossed, Bath, Briefcase, Trees, Pause, Play, Package, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,7 @@ interface BatchImage {
   preview: string;
   status: "pending" | "processing" | "complete" | "error";
   result?: string;
+  processingTime?: number;
 }
 
 const styleOptions: Array<{ id: DesignStyle; name: string; icon: React.ReactNode }> = [
@@ -41,11 +43,34 @@ const roomTypeOptions: Array<{ id: RoomType; name: string; icon: React.ReactNode
 export default function BatchProcessing() {
   const [images, setImages] = useState<BatchImage[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [avgProcessingTime, setAvgProcessingTime] = useState<number>(0);
   const [selectedStyle, setSelectedStyle] = useState<DesignStyle>("modern");
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType>("living-room");
-  const { user, credits } = useAuth();
+  const pauseRef = useRef(false);
+  const { user, credits, refreshCredits } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Calculate progress stats
+  const completedCount = images.filter((img) => img.status === "complete").length;
+  const errorCount = images.filter((img) => img.status === "error").length;
+  const pendingCount = images.filter((img) => img.status === "pending").length;
+  const totalToProcess = images.length;
+  const progressPercent = totalToProcess > 0 ? ((completedCount + errorCount) / totalToProcess) * 100 : 0;
+
+  // Calculate ETA
+  const calculateETA = (): string => {
+    if (!processing || avgProcessingTime === 0 || pendingCount === 0) return "";
+    const remainingImages = pendingCount + (images[currentIndex]?.status === "processing" ? 1 : 0);
+    const remainingSeconds = Math.ceil((remainingImages * avgProcessingTime) / 1000);
+    if (remainingSeconds < 60) return `${remainingSeconds}s`;
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    return `${mins}m ${secs}s`;
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -61,7 +86,20 @@ export default function BatchProcessing() {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const processAll = async () => {
+  // Pause/Resume handlers
+  const handlePause = () => {
+    pauseRef.current = true;
+    setIsPaused(true);
+  };
+
+  const handleResume = () => {
+    pauseRef.current = false;
+    setIsPaused(false);
+    // Resume processing from current index
+    processFromIndex(currentIndex);
+  };
+
+  const processFromIndex = async (startIdx: number) => {
     if (!user) {
       toast({
         title: "Sign in required",
@@ -72,18 +110,38 @@ export default function BatchProcessing() {
       return;
     }
 
-    if (images.length > credits.credits_remaining) {
+    const pendingImages = images.filter((img) => img.status === "pending").length;
+    if (pendingImages > credits.credits_remaining) {
       toast({
         title: "Insufficient credits",
-        description: `You need ${images.length} credits but only have ${credits.credits_remaining}`,
+        description: `You need ${pendingImages} credits but only have ${credits.credits_remaining}`,
         variant: "destructive",
       });
       return;
     }
 
     setProcessing(true);
+    setIsPaused(false);
+    pauseRef.current = false;
+    if (!startTime) setStartTime(Date.now());
 
-    for (let i = 0; i < images.length; i++) {
+    const processingTimes: number[] = [];
+
+    for (let i = startIdx; i < images.length; i++) {
+      // Check if paused
+      if (pauseRef.current) {
+        setCurrentIndex(i);
+        return;
+      }
+
+      // Skip already processed images
+      if (images[i].status === "complete" || images[i].status === "error") {
+        continue;
+      }
+
+      setCurrentIndex(i);
+      const imageStartTime = Date.now();
+
       setImages((prev) =>
         prev.map((img, idx) =>
           idx === i ? { ...img, status: "processing" } : img
@@ -119,11 +177,17 @@ export default function BatchProcessing() {
         if (!response.ok) throw new Error("Generation failed");
 
         const data = await response.json();
+        const processingTime = Date.now() - imageStartTime;
+        processingTimes.push(processingTime);
+
+        // Update average processing time
+        const newAvg = processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
+        setAvgProcessingTime(newAvg);
 
         setImages((prev) =>
           prev.map((img, idx) =>
             idx === i
-              ? { ...img, status: "complete", result: data.imageUrl }
+              ? { ...img, status: "complete", result: data.imageUrl, processingTime }
               : img
           )
         );
@@ -147,12 +211,18 @@ export default function BatchProcessing() {
     }
 
     setProcessing(false);
+    setStartTime(null);
+    refreshCredits();
+
+    const finalCompleted = images.filter((img) => img.status === "complete").length + 1; // +1 for the last one just completed
     toast({
       title: "Batch processing complete!",
-      description: `Successfully processed ${
-        images.filter((img) => img.status === "complete").length
-      } images`,
+      description: `Successfully processed ${finalCompleted} images`,
     });
+  };
+
+  const processAll = () => {
+    processFromIndex(0);
   };
 
   const downloadAll = () => {
@@ -166,6 +236,56 @@ export default function BatchProcessing() {
           link.click();
         }, idx * 200);
       });
+  };
+
+  const downloadAsZip = async () => {
+    const completedImages = images.filter((img) => img.status === "complete" && img.result);
+    if (completedImages.length === 0) return;
+
+    toast({
+      title: "Creating ZIP file...",
+      description: "Please wait while we prepare your download",
+    });
+
+    try {
+      // Dynamically import JSZip
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      // Fetch and add each image to the zip
+      for (let i = 0; i < completedImages.length; i++) {
+        const img = completedImages[i];
+        try {
+          const response = await fetch(img.result!);
+          const blob = await response.blob();
+          zip.file(`roomreimagine-${selectedStyle}-${selectedRoomType}-${i + 1}.png`, blob);
+        } catch (err) {
+          console.error(`Failed to add image ${i + 1} to ZIP:`, err);
+        }
+      }
+
+      // Generate and download the zip
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `roomreimagine-batch-${selectedStyle}-${selectedRoomType}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "ZIP downloaded!",
+        description: `Downloaded ${completedImages.length} images`,
+      });
+    } catch (error) {
+      console.error("ZIP creation failed:", error);
+      toast({
+        title: "ZIP creation failed",
+        description: "Falling back to individual downloads",
+        variant: "destructive",
+      });
+      downloadAll();
+    }
   };
 
   return (
@@ -254,12 +374,71 @@ export default function BatchProcessing() {
           </div>
         )}
 
+        {/* Progress Bar */}
+        {processing && images.length > 0 && (
+          <Card className="p-6 mb-8">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                  <span className="font-medium">
+                    Processing {currentIndex + 1} of {totalToProcess}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  {calculateETA() && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      <span>ETA: {calculateETA()}</span>
+                    </div>
+                  )}
+                  {isPaused ? (
+                    <Button size="sm" onClick={handleResume} variant="outline">
+                      <Play className="w-4 h-4 mr-2" />
+                      Resume
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={handlePause} variant="outline">
+                      <Pause className="w-4 h-4 mr-2" />
+                      Pause
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Progress value={progressPercent} className="h-3" />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{completedCount} completed</span>
+                {errorCount > 0 && <span className="text-destructive">{errorCount} failed</span>}
+                <span>{pendingCount} remaining</span>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Paused Banner */}
+        {isPaused && (
+          <Card className="p-4 mb-8 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Pause className="w-5 h-5 text-amber-600" />
+                <span className="font-medium text-amber-800 dark:text-amber-200">
+                  Processing paused at image {currentIndex + 1}
+                </span>
+              </div>
+              <Button size="sm" onClick={handleResume}>
+                <Play className="w-4 h-4 mr-2" />
+                Resume
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Image Grid */}
         {images.length > 0 && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {images.map((image, idx) => (
-                <Card key={idx} className="relative overflow-hidden">
+                <Card key={idx} className={`relative overflow-hidden ${idx === currentIndex && processing ? 'ring-2 ring-accent' : ''}`}>
                   <div className="aspect-square relative">
                     <img
                       src={image.result || image.preview}
@@ -285,7 +464,7 @@ export default function BatchProcessing() {
                         </span>
                       </div>
                     )}
-                    {!processing && image.status === "pending" && (
+                    {!processing && !isPaused && image.status === "pending" && (
                       <Button
                         variant="destructive"
                         size="sm"
@@ -296,29 +475,58 @@ export default function BatchProcessing() {
                       </Button>
                     )}
                   </div>
+                  {/* Image number badge */}
+                  <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded text-xs font-medium">
+                    #{idx + 1}
+                  </div>
                 </Card>
               ))}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 justify-center">
-              {!processing && images.some((img) => img.status === "pending") && (
-                <Button size="lg" onClick={processAll} disabled={processing}>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {!processing && !isPaused && images.some((img) => img.status === "pending") && (
+                <Button size="lg" onClick={processAll}>
+                  <Play className="w-5 h-5 mr-2" />
                   Process All ({images.filter((img) => img.status === "pending").length})
                 </Button>
               )}
-              {images.some((img) => img.status === "complete") && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={downloadAll}
-                  disabled={processing}
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  Download All
-                </Button>
+              {images.some((img) => img.status === "complete") && !processing && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={downloadAsZip}
+                  >
+                    <Package className="w-5 h-5 mr-2" />
+                    Download ZIP
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    onClick={downloadAll}
+                  >
+                    <Download className="w-5 h-5 mr-2" />
+                    Download Separately
+                  </Button>
+                </>
               )}
             </div>
+
+            {/* Summary Stats */}
+            {!processing && completedCount > 0 && (
+              <div className="mt-8 text-center">
+                <p className="text-muted-foreground">
+                  <span className="text-green-600 font-medium">{completedCount}</span> completed
+                  {errorCount > 0 && (
+                    <>, <span className="text-destructive font-medium">{errorCount}</span> failed</>
+                  )}
+                  {pendingCount > 0 && (
+                    <>, <span className="font-medium">{pendingCount}</span> pending</>
+                  )}
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
