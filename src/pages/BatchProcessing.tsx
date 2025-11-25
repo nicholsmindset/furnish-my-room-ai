@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, X, Loader2, Download } from "lucide-react";
+import { Upload, X, Loader2, Download, Home, Armchair, Minimize2, TreePine, Wrench, Bed, Utensils, UtensilsCrossed, Bath, Briefcase, Trees } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+type DesignStyle = "modern" | "traditional" | "minimalist" | "scandinavian" | "industrial";
+type RoomType = "living-room" | "bedroom" | "kitchen" | "dining-room" | "bathroom" | "office" | "outdoor";
 
 interface BatchImage {
   file: File;
@@ -15,9 +20,29 @@ interface BatchImage {
   result?: string;
 }
 
+const styleOptions: Array<{ id: DesignStyle; name: string; icon: React.ReactNode }> = [
+  { id: "modern", name: "Modern", icon: <Home className="w-4 h-4" /> },
+  { id: "traditional", name: "Traditional", icon: <Armchair className="w-4 h-4" /> },
+  { id: "minimalist", name: "Minimalist", icon: <Minimize2 className="w-4 h-4" /> },
+  { id: "scandinavian", name: "Scandinavian", icon: <TreePine className="w-4 h-4" /> },
+  { id: "industrial", name: "Industrial", icon: <Wrench className="w-4 h-4" /> },
+];
+
+const roomTypeOptions: Array<{ id: RoomType; name: string; icon: React.ReactNode }> = [
+  { id: "living-room", name: "Living Room", icon: <Home className="w-4 h-4" /> },
+  { id: "bedroom", name: "Bedroom", icon: <Bed className="w-4 h-4" /> },
+  { id: "kitchen", name: "Kitchen", icon: <Utensils className="w-4 h-4" /> },
+  { id: "dining-room", name: "Dining Room", icon: <UtensilsCrossed className="w-4 h-4" /> },
+  { id: "bathroom", name: "Bathroom", icon: <Bath className="w-4 h-4" /> },
+  { id: "office", name: "Home Office", icon: <Briefcase className="w-4 h-4" /> },
+  { id: "outdoor", name: "Outdoor Space", icon: <Trees className="w-4 h-4" /> },
+];
+
 export default function BatchProcessing() {
   const [images, setImages] = useState<BatchImage[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<DesignStyle>("modern");
+  const [selectedRoomType, setSelectedRoomType] = useState<RoomType>("living-room");
   const { user, credits } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -85,8 +110,8 @@ export default function BatchProcessing() {
             },
             body: JSON.stringify({
               imageUrl: base64Image,
-              style: "modern",
-              roomType: "living-room",
+              style: selectedStyle,
+              roomType: selectedRoomType,
             }),
           }
         );
@@ -107,8 +132,8 @@ export default function BatchProcessing() {
         await supabase.from("design_generations").insert({
           original_image_url: base64Image,
           generated_image_url: data.imageUrl,
-          style: "modern",
-          room_type: "living-room",
+          style: selectedStyle,
+          room_type: selectedRoomType,
           user_id: user.id,
         });
       } catch (error) {
@@ -137,7 +162,7 @@ export default function BatchProcessing() {
         setTimeout(() => {
           const link = document.createElement("a");
           link.href = img.result!;
-          link.download = `roomreimagine-batch-${idx + 1}.png`;
+          link.download = `roomreimagine-${selectedStyle}-${selectedRoomType}-${idx + 1}.png`;
           link.click();
         }, idx * 200);
       });
@@ -157,6 +182,53 @@ export default function BatchProcessing() {
             Available credits: {credits.credits_remaining}
           </p>
         </div>
+
+        {/* Style and Room Type Selection */}
+        {!processing && (
+          <Card className="p-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="style-select">Design Style</Label>
+                <Select value={selectedStyle} onValueChange={(value: DesignStyle) => setSelectedStyle(value)}>
+                  <SelectTrigger id="style-select" className="w-full">
+                    <SelectValue placeholder="Select a style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {styleOptions.map((style) => (
+                      <SelectItem key={style.id} value={style.id}>
+                        <div className="flex items-center gap-2">
+                          {style.icon}
+                          <span>{style.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="room-select">Room Type</Label>
+                <Select value={selectedRoomType} onValueChange={(value: RoomType) => setSelectedRoomType(value)}>
+                  <SelectTrigger id="room-select" className="w-full">
+                    <SelectValue placeholder="Select a room type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomTypeOptions.map((room) => (
+                      <SelectItem key={room.id} value={room.id}>
+                        <div className="flex items-center gap-2">
+                          {room.icon}
+                          <span>{room.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              Selected: <span className="font-medium capitalize">{selectedStyle}</span> style for <span className="font-medium capitalize">{selectedRoomType.replace("-", " ")}</span>
+            </p>
+          </Card>
+        )}
 
         {/* Upload Area */}
         {!processing && (

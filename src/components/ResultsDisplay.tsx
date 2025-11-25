@@ -42,7 +42,7 @@ export default function ResultsDisplay({
       const blob = await response.blob();
       
       let finalBlob = blob;
-      let extension = format;
+      const extension = format;
       
       // Convert to different formats if needed
       if (format !== 'png') {

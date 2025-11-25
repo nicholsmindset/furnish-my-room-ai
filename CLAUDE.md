@@ -37,9 +37,12 @@ src/
 
 supabase/
 ├── functions/       # Deno edge functions
-│   ├── generate-design/      # FAL.AI integration
-│   ├── create-checkout/      # Stripe checkout
-│   └── check-subscription/   # Subscription validation
+│   ├── generate-design/      # FAL.AI integration (rate limited)
+│   ├── create-checkout/      # Stripe checkout (rate limited)
+│   ├── stripe-webhook/       # Stripe webhook handler
+│   ├── check-subscription/   # Subscription validation
+│   ├── create-share-link/    # Generate share links
+│   └── send-notification-email/  # Email notifications
 └── migrations/      # Database schema (8 migration files)
 ```
 
@@ -61,7 +64,8 @@ supabase/
 | `/dashboard` | User dashboard |
 | `/favorites` | Saved designs |
 | `/batch` | Batch processing (Business tier) |
-| `/gallery` | Shared gallery |
+| `/gallery` | Shared gallery (public designs) |
+| `/share/:token` | View individual shared design |
 | `/admin` | Admin dashboard |
 
 ## Application Flow
@@ -89,11 +93,29 @@ supabase/
 
 ## Environment Variables
 
+See `.env.example` for a complete template.
+
+### Frontend (Vite) - Required
 ```
 VITE_SUPABASE_URL              # Supabase API endpoint
 VITE_SUPABASE_PUBLISHABLE_KEY  # Anon key for client
 VITE_SUPABASE_PROJECT_ID       # Project identifier
 ```
+
+### Backend (Edge Functions) - Set in Supabase Dashboard
+```
+SUPABASE_SERVICE_ROLE_KEY      # Admin key for edge functions
+SUPABASE_ANON_KEY              # For calling other edge functions
+FAL_KEY                        # FAL.AI API key (image generation)
+STRIPE_SECRET_KEY              # Stripe secret key (payments)
+STRIPE_WEBHOOK_SECRET          # Stripe webhook signature verification
+RESEND_API_KEY                 # Resend API key (emails)
+```
+
+### Setup Instructions
+1. Copy `.env.example` to `.env` and fill in frontend values
+2. In Supabase Dashboard > Edge Functions > Secrets, add backend keys
+3. Create Stripe webhook pointing to `your-url/functions/v1/stripe-webhook`
 
 ## Code Conventions
 
@@ -106,10 +128,12 @@ VITE_SUPABASE_PROJECT_ID       # Project identifier
 ## Security Notes
 
 - Auth tokens validated on all edge functions
+- Rate limiting on generate-design (10/min) and create-checkout (5/5min)
 - Credit balance checked before AI generation
 - Image size limited to 10MB
 - Admin role required for sensitive operations
 - CORS headers configured on all endpoints
+- Stripe webhook signature verification
 
 ## Stripe Product IDs
 

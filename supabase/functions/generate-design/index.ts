@@ -7,6 +7,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
+const RATE_LIMIT_MAX_REQUESTS = 10; // Max 10 requests per minute per user
+
+// In-memory rate limiter (resets on cold start, but provides basic protection)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+
+  if (!userLimit || now > userLimit.resetTime) {
+    // New window
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((userLimit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  userLimit.count++;
+  return { allowed: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,6 +112,25 @@ serve(async (req) => {
     }
 
     const userId = userData.user.id;
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(userId);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded. Please slow down.",
+          retryAfter: rateLimit.retryAfter
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimit.retryAfter || 60)
+          }
+        }
+      );
+    }
 
     // Check and deduct credits
     // Check current credits

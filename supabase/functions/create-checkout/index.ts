@@ -7,6 +7,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limit configuration - stricter for checkout (5 attempts per 5 minutes)
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const limit = rateLimitMap.get(identifier);
+
+  if (!limit || now > limit.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (limit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((limit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  limit.count++;
+  return { allowed: true };
+}
+
 const STRIPE_PRODUCTS = {
   "prod_RZkgNtbGJ0eY8j": {
     price_id: "price_1SWFgsDjNCv7xF612MNXPijT",
@@ -51,6 +75,26 @@ serve(async (req) => {
     const user = data.user;
     console.log('[CREATE-CHECKOUT] User email:', user?.email);
     if (!user?.email) throw new Error("User not authenticated or email not available");
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(user.id);
+    if (!rateLimit.allowed) {
+      console.log('[CREATE-CHECKOUT] Rate limit exceeded for user:', user.id);
+      return new Response(
+        JSON.stringify({
+          error: "Too many checkout attempts. Please try again later.",
+          retryAfter: rateLimit.retryAfter
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimit.retryAfter || 300)
+          }
+        }
+      );
+    }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     console.log('[CREATE-CHECKOUT] Stripe key present:', !!stripeKey);

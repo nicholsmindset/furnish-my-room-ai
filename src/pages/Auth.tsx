@@ -18,24 +18,22 @@ export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-
-  // Redirect if already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
-
   const [signInData, setSignInData] = useState({
     email: "",
     password: "",
   });
-
   const [signUpData, setSignUpData] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+  // Redirect if already logged in
+  if (user) {
+    navigate("/");
+    return null;
+  }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
