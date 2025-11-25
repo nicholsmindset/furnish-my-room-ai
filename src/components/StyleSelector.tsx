@@ -1,4 +1,4 @@
-import { Home, Armchair, Minimize2, TreePine, Wrench, Settings, Clock, AlertTriangle } from "lucide-react";
+import { Home, Armchair, Minimize2, TreePine, Wrench, Settings, Clock, AlertTriangle, RefreshCw, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -14,6 +14,9 @@ interface StyleSelectorProps {
   creditsRemaining?: number;
   customParams?: CustomStyleParams;
   onCustomParamsChange?: (params: CustomStyleParams) => void;
+  lastError?: string | null;
+  onRetry?: () => void;
+  canRetry?: boolean;
 }
 
 const styles: Array<{
@@ -54,11 +57,12 @@ const styles: Array<{
   },
 ];
 
-export default function StyleSelector({ onStyleSelect, disabled, rateLimitSeconds, creditsRemaining, customParams, onCustomParamsChange }: StyleSelectorProps) {
+export default function StyleSelector({ onStyleSelect, disabled, rateLimitSeconds, creditsRemaining, customParams, onCustomParamsChange, lastError, onRetry, canRetry }: StyleSelectorProps) {
   const [showCustomControls, setShowCustomControls] = useState(false);
   const navigate = useNavigate();
 
   const hasNoCredits = creditsRemaining !== undefined && creditsRemaining <= 0;
+  const isRetryableError = lastError && !lastError.includes("Rate limit") && !lastError.includes("Insufficient credits");
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -110,6 +114,35 @@ export default function StyleSelector({ onStyleSelect, disabled, rateLimitSecond
           >
             View Plans & Upgrade
           </Button>
+        </div>
+      )}
+
+      {/* Error Banner with Retry */}
+      {isRetryableError && (
+        <div className="max-w-md mx-auto bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                Generation failed
+              </p>
+              <p className="text-sm text-orange-600 dark:text-orange-400 line-clamp-2">
+                {lastError}
+              </p>
+            </div>
+          </div>
+          {canRetry && onRetry && (
+            <Button
+              onClick={onRetry}
+              variant="outline"
+              className="w-full mt-3 border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-900/30"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          )}
         </div>
       )}
 

@@ -1,7 +1,8 @@
-import { Upload, X, AlertCircle } from "lucide-react";
+import { Upload, X, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { compressImage, needsCompression, formatFileSize } from "@/lib/imageUtils";
 
 interface UploadSectionProps {
   onImageSelect: (file: File) => void;
@@ -10,6 +11,7 @@ interface UploadSectionProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const COMPRESSION_THRESHOLD_KB = 2048; // 2MB
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
 export default function UploadSection({
@@ -19,7 +21,23 @@ export default function UploadSection({
 }: UploadSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionInfo, setCompressionInfo] = useState<{ original: number; compressed: number } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Create and cleanup preview URL when selectedImage changes
+  useEffect(() => {
+    if (selectedImage) {
+      const url = URL.createObjectURL(selectedImage);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [selectedImage]);
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -36,7 +54,7 @@ export default function UploadSection({
     return null;
   };
 
-  const handleFileValidation = (file: File) => {
+  const handleFileValidation = async (file: File) => {
     const validationError = validateFile(file);
 
     if (validationError) {
@@ -50,7 +68,45 @@ export default function UploadSection({
     }
 
     setError(null);
-    onImageSelect(file);
+    setCompressionInfo(null);
+
+    // Check if compression is needed
+    if (needsCompression(file, COMPRESSION_THRESHOLD_KB)) {
+      setIsCompressing(true);
+      try {
+        const originalSize = file.size;
+        const compressedFile = await compressImage(file, {
+          maxWidth: 2048,
+          maxHeight: 2048,
+          quality: 0.85,
+          maxSizeKB: COMPRESSION_THRESHOLD_KB,
+        });
+
+        setCompressionInfo({
+          original: originalSize,
+          compressed: compressedFile.size,
+        });
+
+        toast({
+          title: "Image optimized",
+          description: `Compressed from ${formatFileSize(originalSize)} to ${formatFileSize(compressedFile.size)}`,
+        });
+
+        onImageSelect(compressedFile);
+      } catch (err) {
+        console.error("Compression failed:", err);
+        // Fall back to original file
+        toast({
+          title: "Using original image",
+          description: "Compression failed, using original file",
+        });
+        onImageSelect(file);
+      } finally {
+        setIsCompressing(false);
+      }
+    } else {
+      onImageSelect(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -76,12 +132,6 @@ export default function UploadSection({
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
   return (
     <div className="w-full max-w-2xl mx-auto px-6 py-12">
       <div className="text-center mb-8">
@@ -91,7 +141,15 @@ export default function UploadSection({
         </p>
       </div>
 
-      {!selectedImage ? (
+      {isCompressing ? (
+        <div className="border-2 border-dashed border-accent rounded-xl p-16 text-center bg-accent/5">
+          <Loader2 className="w-16 h-16 mx-auto mb-4 text-accent animate-spin" />
+          <p className="text-lg font-medium mb-2">Optimizing your image...</p>
+          <p className="text-sm text-muted-foreground">
+            Compressing for faster upload
+          </p>
+        </div>
+      ) : !selectedImage ? (
         <>
           <div
             onDrop={handleDrop}
@@ -107,7 +165,7 @@ export default function UploadSection({
             <p className="text-lg font-medium mb-2">Drop your image here</p>
             <p className="text-sm text-muted-foreground">or click to browse</p>
             <p className="text-xs text-muted-foreground mt-2">
-              Supports PNG, JPG, WebP (max 10MB)
+              Supports PNG, JPG, WebP (max 10MB, auto-optimized)
             </p>
             <input
               ref={fileInputRef}
@@ -125,11 +183,11 @@ export default function UploadSection({
             </div>
           )}
         </>
-      ) : (
+      ) : previewUrl ? (
         <div className="relative">
           <div className="rounded-xl overflow-hidden shadow-medium border border-border bg-card">
             <img
-              src={URL.createObjectURL(selectedImage)}
+              src={previewUrl}
               alt="Selected room"
               className="w-full h-auto max-h-[500px] object-contain"
             />
@@ -140,6 +198,7 @@ export default function UploadSection({
             onClick={() => {
               onClearImage();
               setError(null);
+              setCompressionInfo(null);
             }}
             className="absolute top-4 right-4 shadow-large"
           >
@@ -147,13 +206,18 @@ export default function UploadSection({
             Remove
           </Button>
           <div className="text-center mt-4 space-y-1">
-            <p className="text-sm font-medium">{selectedImage.name}</p>
+            <p className="text-sm font-medium">{selectedImage?.name}</p>
             <p className="text-xs text-muted-foreground">
-              {formatFileSize(selectedImage.size)}
+              {selectedImage && formatFileSize(selectedImage.size)}
+              {compressionInfo && (
+                <span className="text-green-600 dark:text-green-400 ml-2">
+                  (optimized from {formatFileSize(compressionInfo.original)})
+                </span>
+              )}
             </p>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

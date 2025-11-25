@@ -36,6 +36,9 @@ export default function Index() {
     lighting: 70,
   });
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
+  const [lastSelectedStyle, setLastSelectedStyle] = useState<DesignStyle | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
   const { user, subscription, credits, refreshCredits } = useAuth();
   const [searchParams] = useSearchParams();
@@ -79,6 +82,10 @@ export default function Index() {
   };
 
   const handleImageSelect = (file: File) => {
+    // Clean up previous blob URL if exists
+    if (originalImageUrl && originalImageUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(originalImageUrl);
+    }
     setSelectedImage(file);
     setOriginalImageUrl(URL.createObjectURL(file));
     setAppState("room-type-select");
@@ -90,14 +97,29 @@ export default function Index() {
   };
 
   const handleClearImage = () => {
+    // Clean up blob URL
+    if (originalImageUrl && originalImageUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(originalImageUrl);
+    }
     setSelectedImage(null);
     setOriginalImageUrl("");
     setAppState("upload");
   };
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (originalImageUrl && originalImageUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(originalImageUrl);
+      }
+    };
+  }, [originalImageUrl]);
+
   const handleStyleSelect = async (style: DesignStyle) => {
     if (!selectedImage || !selectedRoomType) return;
 
+    setLastSelectedStyle(style);
+    setLastError(null);
     setAppState("generating");
     setProgress(0);
 
@@ -188,6 +210,9 @@ export default function Index() {
         setAppState("results");
         // Refresh credits after successful generation
         refreshCredits();
+        // Reset retry state on success
+        setRetryCount(0);
+        setLastError(null);
         toast({
           title: "Design Complete! 🎉",
           description: "Your room has been beautifully transformed.",
@@ -196,17 +221,42 @@ export default function Index() {
     } catch (error) {
       clearInterval(progressInterval);
       console.error("Error generating design:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate design. Please try again.";
+      setLastError(errorMessage);
+
+      // Check if it's a retryable error (not rate limit or insufficient credits)
+      const isRetryable = !errorMessage.includes("Rate limit") && !errorMessage.includes("Insufficient credits");
+
       toast({
         variant: "destructive",
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate design. Please try again.",
+        description: errorMessage,
+        action: isRetryable && retryCount < 3 ? (
+          <button
+            onClick={handleRetry}
+            className="bg-destructive-foreground text-destructive px-3 py-1 rounded text-sm font-medium hover:opacity-90"
+          >
+            Retry
+          </button>
+        ) : undefined,
       });
       setAppState("style-select");
       setProgress(0);
     }
   };
 
+  const handleRetry = () => {
+    if (lastSelectedStyle && retryCount < 3) {
+      setRetryCount((prev) => prev + 1);
+      handleStyleSelect(lastSelectedStyle);
+    }
+  };
+
   const handleBack = () => {
+    // Clean up blob URL
+    if (originalImageUrl && originalImageUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(originalImageUrl);
+    }
     setSelectedImage(null);
     setOriginalImageUrl("");
     setGeneratedImageUrl("");
@@ -263,6 +313,9 @@ export default function Index() {
           disabled={rateLimitSeconds > 0 || credits.credits_remaining <= 0}
           rateLimitSeconds={rateLimitSeconds}
           creditsRemaining={credits.credits_remaining}
+          lastError={lastError}
+          onRetry={handleRetry}
+          canRetry={retryCount < 3 && !!lastSelectedStyle}
         />
       )}
 

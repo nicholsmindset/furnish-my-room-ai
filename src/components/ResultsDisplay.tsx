@@ -60,6 +60,27 @@ export default function ResultsDisplay({
     setSliderPosition(percentage);
   };
 
+  // Touch event handlers for mobile support
+  const handleTouchStart = () => setIsDragging(true);
+  const handleTouchEnd = () => setIsDragging(false);
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+    const percentage = (x / rect.width) * 100;
+    setSliderPosition(percentage);
+  };
+
+  // Handle click/tap to set position directly
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percentage = (x / rect.width) * 100;
+    setSliderPosition(percentage);
+  };
+
   const handleDownload = async (format: string) => {
     try {
       const response = await fetch(generatedImage);
@@ -286,11 +307,15 @@ export default function ResultsDisplay({
 
       {/* Before/After Slider */}
       <div
-        className="relative w-full aspect-video rounded-xl overflow-hidden shadow-large mb-8 select-none border border-border bg-card"
+        className="relative w-full aspect-video rounded-xl overflow-hidden shadow-large mb-8 select-none border border-border bg-card cursor-ew-resize touch-none"
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
       >
         {/* After Image (Generated) */}
         <img
