@@ -40,6 +40,7 @@ export default function ReferralProgram() {
     if (user) {
       loadReferralStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadReferralStats = async () => {

@@ -74,6 +74,7 @@ export default function Collections({ selectedCollection, onSelectCollection }: 
       loadCollections();
       loadTotalFavorites();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadCollections = async () => {

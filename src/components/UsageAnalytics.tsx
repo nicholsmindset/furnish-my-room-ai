@@ -47,6 +47,7 @@ export default function UsageAnalytics() {
     if (user) {
       loadUsageData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, timeRange]);
 
   const loadUsageData = async () => {
