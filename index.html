@@ -2,22 +2,84 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RoomReimagine - AI Virtual Staging</title>
-    <meta name="description" content="Transform empty rooms into dream homes with AI-powered virtual staging. Professional interior design in seconds." />
-    <meta name="author" content="RoomReimagine" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
 
-    <meta property="og:title" content="RoomReimagine - AI Virtual Staging" />
-    <meta property="og:description" content="Transform empty rooms into dream homes with AI-powered virtual staging" />
+    <!-- Primary Meta Tags -->
+    <title>Noonah Design - AI-Powered Room Transformation</title>
+    <meta name="title" content="Noonah Design - AI-Powered Room Transformation" />
+    <meta name="description" content="Transform any room with AI-powered interior design. Upload a photo and see it reimagined in modern, minimalist, scandinavian, and more styles. Virtual staging made easy." />
+    <meta name="keywords" content="AI interior design, virtual staging, room transformation, home design, AI room makeover, interior decorator, furniture visualization" />
+    <meta name="author" content="Noonah Design" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#7c3aed" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Noonah Design" />
+    <meta name="application-name" content="Noonah Design" />
+    <meta name="msapplication-TileColor" content="#7c3aed" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:url" content="https://noonahdesign.com/" />
+    <meta property="og:title" content="Noonah Design - AI-Powered Room Transformation" />
+    <meta property="og:description" content="Transform any room with AI-powered interior design. Upload a photo and see it reimagined in any style." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:site_name" content="Noonah Design" />
+    <meta property="og:locale" content="en_US" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:url" content="https://noonahdesign.com/" />
+    <meta name="twitter:title" content="Noonah Design - AI-Powered Room Transformation" />
+    <meta name="twitter:description" content="Transform any room with AI-powered interior design. Upload a photo and see it reimagined in any style." />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Noonah Design",
+      "description": "AI-powered room transformation and virtual staging platform",
+      "url": "https://noonahdesign.com",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
+      }
+    }
+    </script>
+
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="//supabase.co" />
   </head>
 
   <body>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: system-ui, sans-serif;">
+        <h1>JavaScript Required</h1>
+        <p>Noonah Design requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -18,12 +18,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ArrowUpRight, CreditCard, Settings, Sparkles, Zap, Crown, AlertTriangle, History } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowUpRight, CreditCard, Settings, Sparkles, Zap, Crown, AlertTriangle, History, Gift, BarChart3, Coins } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "@/components/Navbar";
+import ReferralProgram from "@/components/ReferralProgram";
+import CreditPurchase from "@/components/CreditPurchase";
+import UsageAnalytics from "@/components/UsageAnalytics";
 
 const PRODUCT_IDS = {
   pro: "prod_RZkgNtbGJ0eY8j",
@@ -164,28 +169,53 @@ export default function UserDashboard() {
   const PlanIcon = getPlanIcon(subscription.tier);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Breadcrumbs */}
-        <Breadcrumb className="mb-8">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Home</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Dashboard</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {/* Breadcrumbs */}
+          <Breadcrumb className="mb-8">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Home</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">My Dashboard</h1>
-          <p className="text-muted-foreground">Manage your account and subscription</p>
-        </div>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">My Dashboard</h1>
+            <p className="text-muted-foreground">Manage your account and subscription</p>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Dashboard Tabs */}
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+              <TabsTrigger value="overview" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="credits" className="gap-2">
+                <Coins className="w-4 h-4" />
+                <span className="hidden sm:inline">Buy Credits</span>
+              </TabsTrigger>
+              <TabsTrigger value="referrals" className="gap-2">
+                <Gift className="w-4 h-4" />
+                <span className="hidden sm:inline">Referrals</span>
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2">
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Analytics</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Low Credit Alert */}
           {credits.credits_remaining <= 5 && credits.credits_remaining > 0 && (
             <Alert variant="destructive" className="lg:col-span-3">
@@ -428,8 +458,26 @@ export default function UserDashboard() {
               </Button>
             </CardContent>
           </Card>
+              </div>
+            </TabsContent>
+
+            {/* Credits Tab */}
+            <TabsContent value="credits">
+              <CreditPurchase />
+            </TabsContent>
+
+            {/* Referrals Tab */}
+            <TabsContent value="referrals">
+              <ReferralProgram />
+            </TabsContent>
+
+            {/* Analytics Tab */}
+            <TabsContent value="analytics">
+              <UsageAnalytics />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-    </div>
+    </>
   );
 }
