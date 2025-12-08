@@ -18,7 +18,7 @@ interface BatchImage {
 export default function BatchProcessing() {
   const [images, setImages] = useState<BatchImage[]>([]);
   const [processing, setProcessing] = useState(false);
-  const { user, credits } = useAuth();
+  const { user, session, credits } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -75,13 +75,17 @@ export default function BatchProcessing() {
 
         const base64Image = await base64Promise;
 
+        if (!session?.access_token) {
+          throw new Error("Please sign in to process images");
+        }
+
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-design`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
               imageUrl: base64Image,

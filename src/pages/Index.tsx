@@ -36,7 +36,7 @@ export default function Index() {
     lighting: 70,
   });
   const { toast } = useToast();
-  const { user, subscription } = useAuth();
+  const { user, session, subscription } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -105,20 +105,22 @@ export default function Index() {
 
       const base64Image = await base64Promise;
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      };
+      if (!session?.access_token) {
+        throw new Error("Please sign in to generate designs");
+      }
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-design`,
         {
           method: "POST",
-          headers,
-          body: JSON.stringify({ 
-            imageUrl: base64Image, 
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            imageUrl: base64Image,
             style,
-            roomType: selectedRoomType 
+            roomType: selectedRoomType
           }),
         }
       );

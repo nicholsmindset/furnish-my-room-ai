@@ -154,8 +154,8 @@ export default function AdminDashboard() {
         _user_id: userId,
         _subscription_tier: tier as 'free' | 'pro' | 'business' | 'admin',
         _is_active: isActive,
-        _stripe_product_id: null,
-        _subscription_end: isActive ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null
+        _stripe_product_id: '',
+        _subscription_end: isActive ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString()
       });
 
       if (error) throw error;

@@ -1,6 +1,6 @@
 import { Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRef } from "react";
+import { useRef, useMemo, useEffect } from "react";
 
 interface UploadSectionProps {
   onImageSelect: (file: File) => void;
@@ -14,6 +14,23 @@ export default function UploadSection({
   onClearImage,
 }: UploadSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Create object URL only when selectedImage changes
+  const previewUrl = useMemo(() => {
+    if (selectedImage) {
+      return URL.createObjectURL(selectedImage);
+    }
+    return null;
+  }, [selectedImage]);
+
+  // Clean up object URL when component unmounts or image changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -62,11 +79,11 @@ export default function UploadSection({
             className="hidden"
           />
         </div>
-      ) : (
+      ) : previewUrl ? (
         <div className="relative">
           <div className="rounded-xl overflow-hidden shadow-medium border border-border bg-card">
             <img
-              src={URL.createObjectURL(selectedImage)}
+              src={previewUrl}
               alt="Selected room"
               className="w-full h-auto max-h-[500px] object-contain"
             />
@@ -81,10 +98,10 @@ export default function UploadSection({
             Remove
           </Button>
           <p className="text-center mt-4 text-sm text-muted-foreground">
-            {selectedImage.name}
+            {selectedImage?.name}
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

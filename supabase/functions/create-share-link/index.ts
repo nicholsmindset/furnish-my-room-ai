@@ -6,12 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Generate random share token
+// Generate cryptographically secure random share token
 function generateShareToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const tokenLength = 16; // Increased from 12 for better security
+  const randomValues = new Uint8Array(tokenLength);
+  crypto.getRandomValues(randomValues);
+
   let token = '';
-  for (let i = 0; i < 12; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < tokenLength; i++) {
+    token += chars.charAt(randomValues[i] % chars.length);
   }
   return token;
 }

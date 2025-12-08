@@ -53,11 +53,13 @@ export default function UserDashboard() {
   }, [user]);
 
   const fetchUsageHistory = async () => {
+    if (!user?.id) return;
+
     try {
       const { data, error } = await supabase
         .from('usage_logs')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
