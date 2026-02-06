@@ -1,4 +1,4 @@
-import { Upload, X } from "lucide-react";
+import { Upload, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useMemo, useEffect } from "react";
 
@@ -6,12 +6,14 @@ interface UploadSectionProps {
   onImageSelect: (file: File) => void;
   selectedImage: File | null;
   onClearImage: () => void;
+  onBack?: () => void;
 }
 
 export default function UploadSection({
   onImageSelect,
   selectedImage,
   onClearImage,
+  onBack,
 }: UploadSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +55,16 @@ export default function UploadSection({
 
   return (
     <div className="w-full max-w-2xl mx-auto px-6 py-12">
+      {onBack && (
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="mb-6"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+      )}
       <div className="text-center mb-8">
         <h2 className="text-3xl md:text-4xl font-bold mb-3">Upload Your Room Photo</h2>
         <p className="text-muted-foreground text-lg">

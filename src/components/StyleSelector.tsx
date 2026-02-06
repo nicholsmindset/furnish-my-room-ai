@@ -1,4 +1,4 @@
-import { Home, Armchair, Minimize2, TreePine, Wrench, Settings } from "lucide-react";
+import { Home, Armchair, Minimize2, TreePine, Wrench, Settings, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -11,6 +11,7 @@ interface StyleSelectorProps {
   disabled?: boolean;
   customParams?: CustomStyleParams;
   onCustomParamsChange?: (params: CustomStyleParams) => void;
+  onBack?: () => void;
 }
 
 const styles: Array<{
@@ -51,11 +52,20 @@ const styles: Array<{
   },
 ];
 
-export default function StyleSelector({ onStyleSelect, disabled, customParams, onCustomParamsChange }: StyleSelectorProps) {
+export default function StyleSelector({ onStyleSelect, disabled, customParams, onCustomParamsChange, onBack }: StyleSelectorProps) {
   const [showCustomControls, setShowCustomControls] = useState(false);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 py-12 space-y-8">
+      {onBack && (
+        <Button
+          variant="ghost"
+          onClick={onBack}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+      )}
       <div className="text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-3">Choose Your Design Style</h2>
         <p className="text-muted-foreground text-lg">

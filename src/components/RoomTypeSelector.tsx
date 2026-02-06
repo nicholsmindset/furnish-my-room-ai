@@ -1,11 +1,13 @@
-import { Home, Bed, Utensils, UtensilsCrossed, Bath, Briefcase, Trees } from "lucide-react";
+import { Home, Bed, Utensils, UtensilsCrossed, Bath, Briefcase, Trees, ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export type RoomType = "living-room" | "bedroom" | "kitchen" | "dining-room" | "bathroom" | "office" | "outdoor";
 
 interface RoomTypeSelectorProps {
   onRoomTypeSelect: (roomType: RoomType) => void;
   disabled?: boolean;
+  onBack?: () => void;
 }
 
 const roomTypes = [
@@ -53,10 +55,20 @@ const roomTypes = [
   },
 ];
 
-export default function RoomTypeSelector({ onRoomTypeSelect, disabled }: RoomTypeSelectorProps) {
+export default function RoomTypeSelector({ onRoomTypeSelect, disabled, onBack }: RoomTypeSelectorProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-b from-background via-background to-muted/20">
       <div className="max-w-5xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {onBack && (
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="self-start"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+        )}
         <div className="text-center space-y-4">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
             What type of room is this?

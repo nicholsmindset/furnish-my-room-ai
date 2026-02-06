@@ -224,18 +224,33 @@ export default function Index() {
           onImageSelect={handleImageSelect}
           selectedImage={selectedImage}
           onClearImage={handleClearImage}
+          onBack={() => {
+            setAppState("hero");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
         />
       )}
 
       {appState === "room-type-select" && (
-        <RoomTypeSelector onRoomTypeSelect={handleRoomTypeSelect} />
+        <RoomTypeSelector
+          onRoomTypeSelect={handleRoomTypeSelect}
+          onBack={() => {
+            setSelectedImage(null);
+            setOriginalImageUrl("");
+            setAppState("upload");
+          }}
+        />
       )}
 
       {appState === "style-select" && (
-        <StyleSelector 
+        <StyleSelector
           onStyleSelect={handleStyleSelect}
           customParams={customParams}
           onCustomParamsChange={setCustomParams}
+          onBack={() => {
+            setSelectedRoomType(null);
+            setAppState("room-type-select");
+          }}
         />
       )}
 
