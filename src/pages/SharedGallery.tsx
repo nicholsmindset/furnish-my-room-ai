@@ -5,18 +5,29 @@ import { Eye, ExternalLink } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 
+interface DesignGeneration {
+  original_image_url: string;
+  generated_image_url: string;
+  style: string;
+  room_type: string;
+}
+
+interface SharedDesignResponse {
+  id: string;
+  generation_id: string;
+  share_token: string;
+  views_count: number;
+  created_at: string;
+  design: DesignGeneration | null;
+}
+
 interface SharedDesign {
   id: string;
   generation_id: string;
   share_token: string;
   views_count: number;
   created_at: string;
-  design: {
-    original_image_url: string;
-    generated_image_url: string;
-    style: string;
-    room_type: string;
-  };
+  design: DesignGeneration;
 }
 
 export default function SharedGallery() {
@@ -33,8 +44,17 @@ export default function SharedGallery() {
         .from("shared_designs")
         .select(
           `
-          *,
-          design:design_generations(*)
+          id,
+          generation_id,
+          share_token,
+          views_count,
+          created_at,
+          design:design_generations(
+            original_image_url,
+            generated_image_url,
+            style,
+            room_type
+          )
         `
         )
         .eq("is_public", true)
@@ -42,16 +62,21 @@ export default function SharedGallery() {
         .limit(50);
 
       if (error) throw error;
-      setDesigns(data as any);
-    } catch (error) {
-      console.error("Error fetching shared designs:", error);
+
+      // Filter out any designs with null design data and properly type
+      const validDesigns = (data as SharedDesignResponse[] | null)
+        ?.filter((d): d is SharedDesign => d.design !== null) || [];
+
+      setDesigns(validDesigns);
+    } catch {
+      // Silently handle error - gallery will show empty state
     } finally {
       setLoading(false);
     }
   };
 
   const openSharedDesign = (shareToken: string) => {
-    window.open(`/shared/${shareToken}`, "_blank");
+    window.open(`/share/${shareToken}`, "_blank");
   };
 
   return (
@@ -87,7 +112,8 @@ export default function SharedGallery() {
                 <div className="aspect-video relative overflow-hidden">
                   <img
                     src={design.design.generated_image_url}
-                    alt="Shared design"
+                    alt={`${design.design.style} style ${design.design.room_type} design`}
+                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -108,6 +134,7 @@ export default function SharedGallery() {
                             e.stopPropagation();
                             openSharedDesign(design.share_token);
                           }}
+                          aria-label="Open shared design"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Button>
@@ -117,7 +144,7 @@ export default function SharedGallery() {
                 </div>
                 <div className="p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4" aria-hidden="true" />
                     <span>{design.views_count} views</span>
                     <span className="ml-auto text-xs">
                       {new Date(design.created_at).toLocaleDateString()}

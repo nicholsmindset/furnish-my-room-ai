@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Pricing from "./pages/Pricing";
@@ -18,29 +19,31 @@ import SharedDesignView from "./pages/SharedDesignView";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/dashboard" element={<UserDashboard />} />
-            <Route path="/favorites" element={<Favorites />} />
-            <Route path="/batch" element={<BatchProcessing />} />
-            <Route path="/gallery" element={<SharedGallery />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/share/:token" element={<SharedDesignView />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/dashboard" element={<UserDashboard />} />
+              <Route path="/favorites" element={<Favorites />} />
+              <Route path="/batch" element={<BatchProcessing />} />
+              <Route path="/gallery" element={<SharedGallery />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/share/:token" element={<SharedDesignView />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

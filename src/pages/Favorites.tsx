@@ -38,6 +38,8 @@ export default function Favorites() {
   }, [user, navigate]);
 
   const loadFavorites = async () => {
+    if (!user?.id) return;
+
     try {
       const { data, error } = await supabase
         .from("favorites")
@@ -53,6 +55,7 @@ export default function Favorites() {
             created_at
           )
         `)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -149,7 +152,8 @@ export default function Favorites() {
                     <div className="aspect-video relative overflow-hidden">
                       <img
                         src={gen.generated_image_url}
-                        alt="Favorite design"
+                        alt={`${gen.style} style ${gen.room_type} design`}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                       />
                     </div>

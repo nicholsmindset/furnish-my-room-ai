@@ -1,16 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { fal } from "https://esm.sh/@fal-ai/client@1.1.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitHeaders } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   try {
     const { imageUrl, style, roomType } = await req.json();
@@ -86,6 +85,22 @@ serve(async (req) => {
     }
 
     const userId = userData.user.id;
+
+    // Rate limiting: 1 request per 5 seconds per user
+    const rateLimit = checkRateLimit(`generate:${userId}`, { windowMs: 5000, maxRequests: 1 });
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please wait a few seconds." }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            ...getRateLimitHeaders(rateLimit),
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
 
     // Check and deduct credits
     // Check current credits

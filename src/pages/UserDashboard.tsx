@@ -65,20 +65,15 @@ export default function UserDashboard() {
 
       if (error) throw error;
       setUsageHistory(data || []);
-    } catch (error) {
-      console.error('Error fetching usage history:', error);
+    } catch {
+      // Silently handle error - usage history is not critical
     } finally {
       setLoadingHistory(false);
     }
   };
 
   const handleUpgrade = async (tier: 'pro' | 'business') => {
-    console.log('handleUpgrade called with tier:', tier);
-    console.log('User:', user?.email);
-    console.log('Session exists:', !!session);
-    
     if (!user || !session) {
-      console.error('Missing user or session');
       toast({
         title: "Authentication Required",
         description: "Please log in to upgrade your subscription.",
@@ -88,10 +83,8 @@ export default function UserDashboard() {
     }
 
     setLoading(tier);
-    console.log('Product ID:', PRODUCT_IDS[tier]);
-    
+
     try {
-      console.log('Invoking create-checkout function...');
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -99,19 +92,14 @@ export default function UserDashboard() {
         body: { productId: PRODUCT_IDS[tier] },
       });
 
-      console.log('Response data:', data);
-      console.log('Response error:', error);
-
       if (error) throw error;
-      
+
       if (data?.url) {
-        console.log('Redirecting to:', data.url);
         window.location.href = data.url;
       } else {
         throw new Error("No checkout URL received");
       }
     } catch (error) {
-      console.error("Checkout error:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to start checkout. Please try again.",

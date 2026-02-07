@@ -1,15 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, getRateLimitHeaders } from "../_shared/rate-limit.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -32,6 +31,19 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Invalid share token format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting by IP to prevent view count manipulation
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const rateLimit = checkRateLimit(`share-view:${token}:${clientIP}`, { windowMs: 60000, maxRequests: 5 });
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests" }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, ...getRateLimitHeaders(rateLimit), "Content-Type": "application/json" }
+        }
       );
     }
 
@@ -72,7 +84,7 @@ serve(async (req) => {
       );
     }
 
-    // Increment view count (fire and forget)
+    // Increment view count (non-blocking)
     supabaseClient
       .from("shared_designs")
       .update({ views_count: (sharedDesign.views_count || 0) + 1 })

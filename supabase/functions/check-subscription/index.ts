@@ -1,26 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
-};
-
-const STRIPE_PRODUCTS = {
-  "prod_RZkgNtbGJ0eY8j": "pro",
-  "prod_RZkhKK9YPWl8YJ": "business",
-};
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { getTierByProductId, getStripeProducts } from "../_shared/stripe-config.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -29,31 +18,37 @@ serve(async (req) => {
   );
 
   try {
-    logStep("Function started");
-
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    if (!stripeKey) {
+      return new Response(
+        JSON.stringify({ error: "Payment service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header provided" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token");
-    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    if (userError || !userData.user?.email) {
+      return new Response(
+        JSON.stringify({ error: "User not authenticated" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
+    const user = userData.user;
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
+
     if (customers.data.length === 0) {
-      logStep("No customer found, maintaining free tier");
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         subscribed: false,
         tier: "free",
         product_id: null,
@@ -65,13 +60,12 @@ serve(async (req) => {
     }
 
     const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
-
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "active",
       limit: 1,
     });
+
     const hasActiveSub = subscriptions.data.length > 0;
     let productId = null;
     let subscriptionEnd = null;
@@ -80,10 +74,8 @@ serve(async (req) => {
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       productId = subscription.items.data[0].price.product as string;
-      tier = STRIPE_PRODUCTS[productId as keyof typeof STRIPE_PRODUCTS] || "free";
-      logStep("Determined subscription tier", { productId, tier });
+      tier = getTierByProductId(productId);
 
       // Update subscription in database
       await supabaseClient
@@ -103,44 +95,36 @@ serve(async (req) => {
         .eq("user_id", user.id);
 
       // Update credits based on tier
-      const creditsPerTier: Record<string, number> = {
-        free: 3,
-        pro: 50,
-        business: 999999,
-      };
+      const products = getStripeProducts();
+      const productInfo = Object.values(products).find(p => p.tier === tier);
+      const credits = productInfo?.credits || 3;
 
       await supabaseClient
         .from("user_credits")
         .update({
-          credits_remaining: creditsPerTier[tier as keyof typeof creditsPerTier] || 3,
+          credits_remaining: credits,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
 
-      // Send payment successful email
-      try {
-        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+      // Send payment successful email (non-blocking)
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+        },
+        body: JSON.stringify({
+          type: "payment_successful",
+          email: user.email,
+          data: {
+            userName: user.email?.split("@")[0] || "User",
+            planName: tier.charAt(0).toUpperCase() + tier.slice(1),
+            amount: tier === "pro" ? "$29.00" : "$99.00",
+            nextBillingDate: new Date(subscription.current_period_end * 1000).toLocaleDateString(),
           },
-          body: JSON.stringify({
-            type: "payment_successful",
-            email: user.email,
-            data: {
-              userName: user.email.split("@")[0],
-              planName: tier.charAt(0).toUpperCase() + tier.slice(1),
-              amount: tier === "pro" ? "$29.00" : "$99.00",
-              nextBillingDate: new Date(subscription.current_period_end * 1000).toLocaleDateString(),
-            },
-          }),
-        });
-      } catch (emailError) {
-        console.error("Failed to send payment email:", emailError);
-      }
-    } else {
-      logStep("No active subscription found");
+        }),
+      }).catch(err => console.error("Failed to send payment email:", err));
     }
 
     return new Response(JSON.stringify({
@@ -154,7 +138,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
+    console.error("[CHECK-SUBSCRIPTION] Error:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
